@@ -14,6 +14,7 @@ class ROM:
     files are history_001.dat, history_002.dat, ecc.. the template name is history.dat),
     and the path to the folder where all the physical model files are contained.
     These are the deformation shape files and the normals file.
+    It also checks that all the databases have the same deltaT.
     """
 
     def __init__(self, filenameStru, filenameAero, pathToModel):
@@ -24,7 +25,7 @@ class ROM:
 
 
     def __createABmatrices(self):
-        
+
         % Load the snapshot matrix.
 % The matrix is evolving in time column-wise
 SnapshotLoad = load(strcat(pwd,filesep,'V',num2str(Velocity),filesep,'Snapshot.mat'),'Snapshot');

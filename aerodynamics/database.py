@@ -14,6 +14,7 @@ class database:
     """
 
     def __init__(self, filenameStru, filenameAero):
+        print('Creating the database for the reduced order model.')
         self.filenameStru = filenameStru
         self.filenameAero = filenameAero
         self.timeIter = np.empty((0),dtype=int)
