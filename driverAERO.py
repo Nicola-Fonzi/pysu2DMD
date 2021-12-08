@@ -83,14 +83,14 @@ def main():
     inputs = inputClass(options.inputs, databases[0].deltaT)
 
     # Run the prediction step
-    Forces = np.empty((inputs.U.shape()[0], 0), dtype=float)
+    forces = np.empty((inputs.U.shape()[0], 0), dtype=float)
     for i in range(inputs.U.shape()[1]):
-        Forces = np.append(Forces, ROM.predict(inputs.U[:,i]), axis=1)
+        forces = np.append(forces, ROM.predict(inputs.U[:, i]), axis=1)
 
     # Print the obtained modal forces to file
     with open(options.outputs, 'w') as file:
-        for i in range(Forces.shape()[1]):
-            toPrint = str(Forces[:,i])
+        for i in range(forces.shape()[1]):
+            toPrint = str(forces[:, i])
             file.write(toPrint)
 
 if __name__ == '__main__':
