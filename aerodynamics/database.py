@@ -24,6 +24,7 @@ class database:
         self.X = None                             # Aero snapshot matrix
         self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
         self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
+        self.Udotinit = None                      # Stru velocity
         print('Importing the data from the files.')
         self.__readFileStru()
         self.__readFileAero()
@@ -40,6 +41,7 @@ class database:
             timeOld = None
             while True:
                 newColumn = np.empty((nModes, 1))
+                velColumn = newColumn
                 line = file.readline()
                 if not line:
                     break
@@ -53,13 +55,14 @@ class database:
                         self.deltaT = time-timeOld
                 timeIter = int(line.pop(0))
                 self.timeIter = np.append(self.timeIter, [timeIter], axis=0)
-                line.pop(0)
+                FSIiter = line.pop(0)
                 for iMode in range(nModes):
-                    newColumn[iMode] = float(line.pop(0))
-                    line.pop(0)
-                    line.pop(0)
+                    newColumn = np.append(newColumn, float(line.pop(0)))
+                    velColumn = np.append(velColumn, float(line.pop(0)))
+                    acc = float(line.pop(0))
                 self.U = np.append(self.U, newColumn, axis=1)
             self.Uinit = newColumn
+            self.Udotinit = velColumn
             print('Completed reading')
 
     def __readFileAero(self):

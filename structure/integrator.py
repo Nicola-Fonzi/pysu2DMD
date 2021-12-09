@@ -18,9 +18,9 @@ class solver:
         """
         print("\n")
         print(" Configuring the structural solver for FSI simulation ".center(80, "-"))
-        self.nmodes = configuration["NMODES"]
+        self.nmodes = configuration["N_MODES"]
         self.deltaT = configuration["DELTA_T"]
-        self.struHistory = configuration["STRU_HISTORY"]
+        self.outputFile = configuration["OUTPUTS"]
         self.modalDamping = configuration["MODAL_DAMP"]
         if self.modalDamping == 0:
             print("The structural model is undamped")
@@ -35,7 +35,7 @@ class solver:
         print("\n")
         print(" Setting the integration parameters ".center(80, "-"))
         self.__setIntegrationParameters()
-        self.__setInitialConditions()
+        self.__setInitialConditions(configuration["INITIAL_MODES"], configuration["INITIAL_VEL"])
 
     def __setStructuralMatrices(self):
         """
@@ -172,28 +172,14 @@ class solver:
         self.gammaPrime = self.gamma / (self.deltaT * self.beta)
         self.betaPrime = (1.0 - self.alpha_m) / ((self.deltaT ** 2) * self.beta * (1.0 - self.alpha_f))
 
-    def __setInitialConditions(self):
+    def __setInitialConditions(self, initialModes, initialVel):
         """
         This method uses the list of initial modal amplitudes to set the initial conditions
         """
 
         print('Setting initial conditions.')
-
-        with open(self.struHistory, 'r') as file:
-            line = file.readline()  # This will be the header line
-            while 1:
-                lineOld = line
-                line = file.readline()
-                if not line:
-                    break
-            lineOld = lineOld.strip('\r\n').split()
-            index = 0
-            for index_mode in range(self.nmodes):
-                self.q[index_mode] = float(lineOld[index + 3])
-                self.qdot[index_mode] = float(lineOld[index + 4])
-                self.qddot[index_mode] = float(lineOld[index + 5])
-                index += 3
-            del index
+        self.q = initialModes
+        self.qdot = initialVel
 
         RHS = np.zeros((self.nmodes, 1))
         RHS += self.F
@@ -204,6 +190,8 @@ class solver:
         self.a = np.copy(self.qddot)
         self.a_n = np.copy(self.qddot)
 
+        self.timeIter = 0
+
     @staticmethod
     def __reset(vector):
         """
@@ -213,18 +201,18 @@ class solver:
         for ii in range(vector.shape[0]):
             vector[ii] = 0.0
 
-    def run(self, time):
+    def run(self):
         """
         This method is the main function for advancing the solution of one time step.
         """
         self.__temporalIteration()
-        header = 'Time\t'
+        header = 'Time iter\t'
         for imode in range(min([self.nmodes, 5])):
             header = header + 'q' + str(imode + 1) + '\t' + 'qdot' + str(imode + 1) + '\t' + 'qddot' + str(
                 imode + 1) + '\t'
         header = header + '\n'
         print(header)
-        line = '{:6.4f}'.format(time) + '\t'
+        line = '{:6.4f}'.format(self.timeIter) + '\t'
         for imode in range(min([self.nmodes, 5])):
             line = line + '{:6.4f}'.format(float(self.q[imode])) + '\t' + '{:6.4f}'.format(
                 float(self.qdot[imode])) + '\t' + '{:6.4f}'.format(float(self.qddot[imode])) + '\t'
@@ -270,14 +258,14 @@ class solver:
 
         self.a += (1 - self.alpha_f) / (1 - self.alpha_m) * self.qddot
 
-    def writeSolution(self, time, timeIter, FSIIter):
+    def writeSolution(self):
         """
         This method is the main function for output. It writes the file StructHistoryModal.dat
         """
 
         # Modal History
-        histFile = open(self.struHistory, "a")
-        line = str(time) + '\t' + str(timeIter) + '\t' + str(FSIIter) + '\t'
+        histFile = open(self.outputFile, "a")
+        line = str(self.timeIter) + '\t'
         for imode in range(self.nmodes):
             line = line + str(float(self.q[imode])) + '\t' + str(float(self.qdot[imode])) + '\t' + str(
                 float(self.qddot[imode])) + '\t'
@@ -298,6 +286,8 @@ class solver:
         self.__reset(self.qdot)
         self.__reset(self.qddot)
         self.__reset(self.a)
+
+        self.timeIter += 1
 
     def applyload(self, forces):
         """

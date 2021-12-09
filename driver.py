@@ -65,28 +65,47 @@ def main():
 
     # Gather the databases
     databases = []
-    for i in range(configuration["DIMENSION"]):
+    for i in range(int(configuration["DIMENSION"])):
         databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i], configuration["AERO_HISTORY"][i]))
 
     # Build the ROM
     ROM = aerodynamics.ROM(databases, model)
 
-    # Build the future inputs class
-    inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
+    if configuration["IMPOSED_MOTION"]=="YES":
+        # Build the future inputs class
+        inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
 
-    # Run the prediction step
-    modalForces = np.empty((inputs.U.shape()[0], 0), dtype=float)
-    forces = np.empty((0), dtype=float)
-    for i in range(inputs.U.shape()[1]):
-        modalForces = np.append(modalForces, ROM.predict(inputs.U[:, i]), axis=1)
-        ROM.update()
-        forces = np.append(forces, ROM.model.getCl(ROM.model.X))
+        # Run the prediction step
+        modalForces = np.empty((inputs.U.shape()[0], 0), dtype=float)
+        forces = np.empty((0), dtype=float)
+        for i in range(inputs.U.shape()[1]):
+            modalForces = np.append(modalForces, ROM.predict(inputs.U[:, i]), axis=1)
+            ROM.update()
+            forces = np.append(forces, ROM.model.getCl(ROM.model.X))
 
-    # Print the obtained modal forces to file
-    with open(configuration["OUTPUTS"], 'w') as file:
-        for i in range(forces.shape()[1]):
-            toPrint = str(forces[i])
-            file.write(toPrint)
+        # Print the obtained modal forces to file
+        with open(configuration["OUTPUTS"], 'w') as file:
+            for i in range(forces.shape()[1]):
+                toPrint = str(forces[i])
+                file.write(toPrint)
+    else:
+        import structure
+        solverConfiguration = {}
+        solverConfiguration["N_MODES"] = ROM.nmodes
+        solverConfiguration["DELTA_T"] = ROM.deltaT
+        solverConfiguration["MODAL_DAMP"] = configuration["MODAL_DAMP"]
+        solverConfiguration["PUNCH_FILE"] = configuration["PUNCH_FILE"]
+        solverConfiguration["INITIAL_MODES"] = ROM.databases[0].Uinit
+        solverConfiguration["INITIAL_VEL"] = ROM.databases[0].Udotinit
+        solverConfiguration["OUTPUTS"] = configuration["OUTPUTS"]
+        solver = structure.solver(solverConfiguration)
+        solver.writeSolution(solver.timeIter)
+        for timeIter in range(int(configuration["TIME_ITER"])):
+            solver.applyload(np.array(ROM.predict(solver.q)))
+            solver.run()
+            solver.updateSolution()
+            ROM.update()
+            solver.writeSolution(solver.timeIter)
 
 
 def readConfig(cfgFile):
@@ -109,6 +128,7 @@ def readConfig(cfgFile):
         configuration[this_param] = this_value
 
         return configuration
+
 
 if __name__ == '__main__':
     main()
