@@ -158,3 +158,9 @@ class physicalModel:
                 nodalForcex, nodalForcey, nodalForcez = self.normals[j] * Cp[j]
                 force[i] += nodeForce(1, nodalForcex, nodalForcey, nodalForcez) * self.shapes[i][j]
         return force
+
+    def getCl(self, Cp):
+        force = 0.0
+        for j in range(len(self.normals)):
+            force += self.normals[j].nz * Cp[j]
+        return force

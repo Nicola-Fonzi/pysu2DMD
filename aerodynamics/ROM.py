@@ -14,14 +14,14 @@ class ROM:
     """
 
     def __init__(self, databases, model):
-        self.databases = databases
-        self.model = model
-        self.deltaT = databases[0].deltaT
-        self.A = None
-        self.B = None
-        self.X = None
-        self.Xnew = None
-        for i in range(1,len(self.databases)):
+        self.databases = databases          # Set of aero databases that will be used to build the ROM
+        self.model = model                  # Physical aero model to connect the state of ROM with physical forces
+        self.deltaT = databases[0].deltaT   # The time step of the ROM
+        self.A = None                       # A matrix, evolving the state
+        self.B = None                       # B matrix, including the structural inputs
+        self.X = None                       # Aerodynamic state
+        self.Xnew = None                    # Next time level aerodynamic state
+        for i in range(1, len(self.databases)):
             if databases[i].deltaT != self.deltaT:
                 raise Exception('Different time step for the different databases')
         self.__createABmatrices()
