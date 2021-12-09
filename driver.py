@@ -90,14 +90,9 @@ def main():
                 file.write(toPrint)
     else:
         import structure
-        solverConfiguration = {}
-        solverConfiguration["N_MODES"] = ROM.nmodes
-        solverConfiguration["DELTA_T"] = ROM.deltaT
-        solverConfiguration["MODAL_DAMP"] = configuration["MODAL_DAMP"]
-        solverConfiguration["PUNCH_FILE"] = configuration["PUNCH_FILE"]
-        solverConfiguration["INITIAL_MODES"] = ROM.databases[0].Uinit
-        solverConfiguration["INITIAL_VEL"] = ROM.databases[0].Udotinit
-        solverConfiguration["OUTPUTS"] = configuration["OUTPUTS"]
+        solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT, "MODAL_DAMP": configuration["MODAL_DAMP"],
+                               "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
+                               "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
         solver.writeSolution(solver.timeIter)
         for timeIter in range(int(configuration["TIME_ITER"])):
