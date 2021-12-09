@@ -3,6 +3,7 @@ from optparse import OptionParser  # use a parser for configuration
 import aerodynamics
 import numpy as np
 
+
 class inputClass:
 
     def __init__(self, inputFile, deltaT):
@@ -11,7 +12,9 @@ class inputClass:
         self.U = None
         self.__readInputFile()
         if self.deltaT != deltaT:
-            raise Exception('The ROM has been trained with a time step of '+str(deltaT)+', but a time step of '+str(self.deltaT)+' was found in the inputs')
+            raise Exception(
+                'The ROM has been trained with a time step of ' + str(deltaT) + ', but a time step of ' + str(
+                    self.deltaT) + ' was found in the inputs')
 
     def __readInputFile(self):
         with open(self.inputFile, 'r') as file:
@@ -19,7 +22,7 @@ class inputClass:
             headerLine = file.readline()
             headerLine = headerLine.strip('\r\n')
             headerLine = headerLine.split('\t')
-            nModes = int((len(headerLine)-3)/3)
+            nModes = int((len(headerLine) - 3) / 3)
             self.U = np.empty((nModes, 0))
             timeOld = None
             while True:
@@ -34,7 +37,7 @@ class inputClass:
                     if not timeOld:
                         timeOld = time
                     else:
-                        self.deltaT = time-timeOld
+                        self.deltaT = time - timeOld
                 dummy = line.pop(0)
                 dummy = line.pop(0)
                 for iMode in range(nModes):
@@ -44,43 +47,32 @@ class inputClass:
                 self.U = np.append(self.U, newColumn, axis=1)
             print('Completed reading')
 
-def main():
 
-    parser=OptionParser()
-    parser.add_option("-n", "--normals",               dest="normals",
-                      help="Read panel normals from FILE", metavar="FILE", default=None)
-    parser.add_option("-m", "--modes",                 dest="modes",
-                      help="Read mode shapes from FILE", metavar="FILE", default=None)
-    parser.add_option("-d", "--dimension",             dest="dimenstion", type="int",
-                      help="Specify the number of databases (i.e., the number of conditions)", default=1)
-    parser.add_option("-s", "--structuralHistory",     dest="structuralHistory", action = "append",
-                      help="Specify the file where the structural history can be found", default=[])
-    parser.add_option("-a", "--aerodynamicHistory",    dest="aerodynamicHistory", action = "append",
-                      help="Specify the file where the aerodynamic history can be found", default=[])
-    parser.add_option("-i", "--inputs",                dest="inputs",
-                      help="Specify the file where the future structural inputs can be found", default=[])
-    parser.add_option("-o", "--outputs",                dest="outputs",
-                      help="Specify the file where the future structural forces are printed", default=[])
+def main():
+    parser = OptionParser()
+    parser.add_option("-f", "--file", dest="cfgFile",
+                      help="Read configuration from FILE", metavar="FILE", default=None)
 
     (options, args) = parser.parse_args()
+    configuration = readConfig(options.cfgFile)
 
     # Double check that the number of histories correspond to the requested dimension
-    if options.dimension != len(options.structuralHistory) or options.dimension != len(options.aerodynamicHistory):
+    if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
         raise Exception('Please provide history files in the same number as specified in the -d option')
 
     # Create the physical model
-    model = aerodynamics.physicalModel(options.normals, options.modes)
+    model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
 
     # Gather the databases
     databases = []
-    for i in range(options.dimension):
-        databases.append(aerodynamics.database(options.structuralHistory[i], options.aerodynamicHistory[i]))
+    for i in range(configuration["DIMENSION"]):
+        databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i], configuration["AERO_HISTORY"][i]))
 
     # Build the ROM
     ROM = aerodynamics.ROM(databases, model)
 
     # Build the future inputs class
-    inputs = inputClass(options.inputs, databases[0].deltaT)
+    inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
 
     # Run the prediction step
     modalForces = np.empty((inputs.U.shape()[0], 0), dtype=float)
@@ -91,10 +83,32 @@ def main():
         forces = np.append(forces, ROM.model.getCl(ROM.model.X))
 
     # Print the obtained modal forces to file
-    with open(options.outputs, 'w') as file:
+    with open(configuration["OUTPUTS"], 'w') as file:
         for i in range(forces.shape()[1]):
             toPrint = str(forces[i])
             file.write(toPrint)
+
+
+def readConfig(cfgFile):
+    input_file = open(cfgFile)
+    configuration = {}
+    while 1:
+        line = input_file.readline()
+        if not line:
+            break
+        # remove line returns
+        line = line.strip('\r\n')
+        # make sure it has useful data
+        if ("=" not in line) or (line[0] == '%'):
+            continue
+        # split across equal sign
+        line = line.split("=", 1)
+        this_param = line[0].strip()
+        this_value = line[1].strip()
+
+        configuration[this_param] = this_value
+
+        return configuration
 
 if __name__ == '__main__':
     main()
