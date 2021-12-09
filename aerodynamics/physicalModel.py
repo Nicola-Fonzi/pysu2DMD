@@ -4,6 +4,7 @@
 import glob
 import os
 
+
 class nodeNormal:
     def __init__(self, ID, nx, ny, nz):
         self.ID = ID
@@ -15,14 +16,20 @@ class nodeNormal:
         return self.ID < other.ID
 
     def __eq__(self, other):
-        return self.ID == other.ID
+        try:
+            int(other)
+            return self.ID == other
+        except TypeError:
+            return self.ID == other.ID
 
     def __mul__(self, other):
-        return self.nx*other.value, self.ny*other.value, self.nz*other.value
+        return self.nx * other, self.ny * other, self.nz * other
+
 
 class nodeForce(nodeNormal):
     def __mul__(self, other):
-        return self.nx*other.ux + self.ny*other.uy + self.nz*other.uz
+        return self.nx * other.ux + self.ny * other.uy + self.nz * other.uz
+
 
 class nodeShape:
     def __init__(self, ID, ux, uy, uz):
@@ -38,7 +45,8 @@ class nodeShape:
         return self.ID == other.ID
 
     def __sub__(self, other):
-        return self.ux-other.ux, self.uy-other.uy, self.uz-other.uz
+        return self.ux - other.ux, self.uy - other.uy, self.uz - other.uz
+
 
 class physicalModel:
     """
@@ -48,6 +56,7 @@ class physicalModel:
     normals are dimensional normals, meaning that their norm is equal to the
     panel area
     """
+
     def __init__(self, filenameNormals, filenameModes):
         print('Creating the physical model.')
         self.filenameNormals = filenameNormals
@@ -121,16 +130,16 @@ class physicalModel:
                     line = line.strip('\r\n')
                     line = line.split(',')
                     newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexX + 1]),
-                                  float(line[indexX + 2])))
+                                               float(line[indexX + 2])))
             for i in range(len(newColumn)):
-                newColumn[i].ux, newColumn[i].uy, newColumn[i].uz = newColumn[i]-self.undeformedShape[i]
+                newColumn[i].ux, newColumn[i].uy, newColumn[i].uz = newColumn[i] - self.undeformedShape[i]
             self.shapes.append(newColumn)
         print('Completed reading')
 
     def __getFiles(self):
         path, extension = os.path.splitext(self.filenameModes)
         endPaths = glob.glob(path + '*')
-        undeformedPath = os.path.join(os.path.split(self.filenameModes)[0],'Undeformed')+extension
+        undeformedPath = os.path.join(os.path.split(self.filenameModes)[0], 'Undeformed') + extension
         return endPaths, undeformedPath
 
     def __sortPoints(self):
@@ -142,12 +151,10 @@ class physicalModel:
 
     def getModalForces(self, Cp):
         force = []
-        if not self.normals == Cp:
-            raise Exception('Cps are not defined on the same cells as for the definition of the normals')
         for i in range(len(self.shapes)):
             force.append(0.0)
         for i in range(len(self.shapes)):
             for j in range(len(self.normals)):
-                nodalForcex, nodalForcey, nodalForcez = self.normals[j]*Cp[j]
-                force[i] += nodeForce(1, nodalForcex, nodalForcey, nodalForcez)*self.shapes[i][j]
+                nodalForcex, nodalForcey, nodalForcez = self.normals[j] * Cp[j]
+                force[i] += nodeForce(1, nodalForcex, nodalForcey, nodalForcez) * self.shapes[i][j]
         return force

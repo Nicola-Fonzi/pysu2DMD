@@ -86,6 +86,7 @@ def main():
     forces = np.empty((inputs.U.shape()[0], 0), dtype=float)
     for i in range(inputs.U.shape()[1]):
         forces = np.append(forces, ROM.predict(inputs.U[:, i]), axis=1)
+        ROM.update()
 
     # Print the obtained modal forces to file
     with open(options.outputs, 'w') as file:

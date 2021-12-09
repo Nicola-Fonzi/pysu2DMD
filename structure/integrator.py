@@ -306,4 +306,4 @@ class solver:
         if len(forces) != self.nmodes:
             raise Exception('Number of modal forces not equal to number of modes')
 
-        self.F = np.array(forces)
+        self.F = forces

@@ -15,12 +15,15 @@ class database:
 
     def __init__(self, filenameStru, filenameAero):
         print('Creating the database for the reduced order model.')
-        self.filenameStru = filenameStru
-        self.filenameAero = filenameAero
-        self.timeIter = np.empty((0), dtype=int)
-        self.deltaT = None
-        self.U = None
-        self.X = None
+        self.filenameStru = filenameStru          # The file where to read the structural history
+        self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
+        self.timeIter = np.empty((0), dtype=int)  # The time iterations at which history has been saved
+        self.pointID = np.empty((0), dtype=int)   # IDs of the points in the aero history
+        self.deltaT = None                        # Time step size
+        self.U = None                             # Structural snapshot matrix
+        self.X = None                             # Aero snapshot matrix
+        self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
+        self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
         print('Importing the data from the files.')
         self.__readFileStru()
         self.__readFileAero()
@@ -50,12 +53,13 @@ class database:
                         self.deltaT = time-timeOld
                 timeIter = int(line.pop(0))
                 self.timeIter = np.append(self.timeIter, [timeIter], axis=0)
-                FSIIter = int(line.pop(0))
+                line.pop(0)
                 for iMode in range(nModes):
                     newColumn[iMode] = float(line.pop(0))
-                    dummy = line.pop(0)
-                    dummy = line.pop(0)
+                    line.pop(0)
+                    line.pop(0)
                 self.U = np.append(self.U, newColumn, axis=1)
+            self.Uinit = newColumn
             print('Completed reading')
 
     def __readFileAero(self):
@@ -74,6 +78,7 @@ class database:
                 if '"Pressure_Coefficient"' not in headerLine:
                     raise Exception('Pressure_Coefficient must be requested as an output to the fluid solver')
                 indexCp = headerLine.index('"Pressure_Coefficient"')
+                indexID = headerLine.index('"PointID"')
                 while True:
                     line = file.readline()
                     if not line:
@@ -81,18 +86,53 @@ class database:
                     line = line.strip('\r\n')
                     line = line.split(',')
                     newColumn = np.append(newColumn, float(line[indexCp]))
+                    if XtoSet:
+                        self.pointID = np.append(self.pointID, int(line[indexID]))
             if XtoSet:
                 self.X = np.empty((len(newColumn), 0))
                 XtoSet = False
             newColumn = newColumn.reshape((len(newColumn), 1))
             self.X = np.append(self.X, newColumn, axis=1)
+        self.Xinit = newColumn
         print('Completed reading')
 
-    def getStatePOD(self):
-        Xmean = np.mean(self.X[:,:-1], axis=1)
+    def getShiftedStatePOD(self, plot=False):
+        Xmean = np.mean(self.X[:, 1:], axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
-        U, S, V = np.linalg.svd(self.X[:,:-1]-Xmean)
-        return U, S, V
+
+        U, S, VT = self.__performSVD(plot, self.X[:, 1:] - Xmean)
+
+        return U, S, VT, Xmean
+
+    def getModifiedStatePOD(self, plot=False):
+        Xmean = np.mean(self.X[:, :-1], axis=1)
+        Xmean = Xmean.reshape((len(Xmean), 1))
+        Umean = np.mean(self.U[:, -1], axis=1)
+        Umean = Umean.reshape((len(Umean), 1))
+
+        U, S, VT = self.__performSVD(plot, self.X[:, 1:] - Xmean, self.U[:, 1:] - Umean)
+
+        return U, S, VT, Xmean, Umean
+
+    def __performSVD(self, plot, M1, M2=None):
+        if M2:
+            U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0))
+        else:
+            U, S, VT = np.linalg.svd(M1)
+
+        tsh = self.getOptimalThreshold(S)
+        cut = (np.diag(S) > tsh).argmax() - 1
+        U = U[:, :cut]
+        S = S[:cut, :cut]
+        VT = VT[:cut, :]
+
+        if plot:
+            from matplotlib import pyplot as plt
+            n = len(np.diag(S)) + 1
+            plt.stackplot(range(1, n), np.diag(S), np.ones(shape=(1, n), dtype=float) * tsh)
+            plt.show()
+
+        return U, S, VT
 
     def getOptimalThreshold(self, M):
         beta = M.shape[1]/M.shape[0]
