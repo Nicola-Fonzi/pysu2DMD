@@ -42,8 +42,8 @@ class ROM:
             q = self.databases[i].U.shape()[0]
             U_1 = U[:n, :]
             U_2 = U[n+q:, :]
-            self.A = Up.transpose() * VT.transpose() * np.linalg.inv(S) * U_1.transpose() * Up
-            self.B = Up.transpose() * VT.transpose() * np.linalg.inv(S) * U_2.transpose()
+            self.A = np.multi_dot([Up.conj().T, VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
+            self.B = np.multi_dot([Up.conj().T, VT.conj().T, np.linalg.inv(S), U_2.conj().T])
 
     def __setInitialCondition(self):
         # TODO we need to treat the different operating conditions and "mix" the initial conditions
@@ -52,7 +52,7 @@ class ROM:
 
     def predict(self, inputs):
         # TODO we need to treat the different operating conditions
-        self.Xnew = self.A*self.X + self.B*inputs
+        self.Xnew = self.A.dot(self.X) + self.B.dot(inputs)
         forces = self.model.getModalForces(self.Xnew)
 
         return forces
