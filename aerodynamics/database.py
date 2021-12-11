@@ -99,7 +99,7 @@ class database:
         self.Xinit = newColumn
         print('Completed reading')
 
-    def getShiftedStatePOD(self, plot=False):
+    def getShiftedStateSVD(self, plot=False):
         Xmean = np.mean(self.X[:, 1:], axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
@@ -107,7 +107,7 @@ class database:
 
         return U, S, VT, Xmean
 
-    def getModifiedStatePOD(self, plot=False):
+    def getModifiedStateSVD(self, plot=False):
         Xmean = np.mean(self.X[:, :-1], axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
         Umean = np.mean(self.U[:, -1], axis=1)
@@ -119,9 +119,9 @@ class database:
 
     def __performSVD(self, plot, M1, M2=None):
         if M2:
-            U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0))
+            U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0), full_matrices=False)
         else:
-            U, S, VT = np.linalg.svd(M1)
+            U, S, VT = np.linalg.svd(M1, full_matrices=False)
 
         tsh = self.getOptimalThreshold(S)
         cut = (np.diag(S) > tsh).argmax() - 1

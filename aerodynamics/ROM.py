@@ -36,14 +36,16 @@ class ROM:
             raise Exception('Multiple databases not yet supported')
 
         for i in range(len(self.databases)):
-            U, S, VT, Xmean, Umean = self.databases[i].getModifiedStatePOD()
-            Up, Sp, VTp, Xpmean = self.databases[i].getShiftedStatePOD()
+            U, S, VT, Xmean, Umean = self.databases[i].getModifiedStateSVD()
+            Up, Sp, VTp, Xpmean = self.databases[i].getShiftedStateSVD()
             n = self.databases[i].X.shape()[0]
             q = self.databases[i].U.shape()[0]
             U_1 = U[:n, :]
             U_2 = U[n+q:, :]
             self.A = np.multi_dot([Up.conj().T, VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
             self.B = np.multi_dot([Up.conj().T, VT.conj().T, np.linalg.inv(S), U_2.conj().T])
+            self.Xmean = Xmean
+            self.Umean = Umean
 
     def __setInitialCondition(self):
         # TODO we need to treat the different operating conditions and "mix" the initial conditions
@@ -52,8 +54,9 @@ class ROM:
 
     def predict(self, inputs):
         # TODO we need to treat the different operating conditions
+        inputs -= self.Umean
         self.Xnew = self.A.dot(self.X) + self.B.dot(inputs)
-        forces = self.model.getModalForces(self.Xnew)
+        forces = self.model.getModalForces(self.Xnew+self.Xmean)
 
         return forces
 
