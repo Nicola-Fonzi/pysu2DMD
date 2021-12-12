@@ -40,11 +40,11 @@ class database:
             self.U = np.empty((nModes, 0))
             timeOld = None
             while True:
-                newColumn = np.empty((nModes, 1))
-                velColumn = newColumn
                 line = file.readline()
                 if not line:
                     break
+                newColumn = np.empty((0))
+                velColumn = newColumn
                 line = line.strip('\r\n')
                 line = line.split('\t')
                 time = float(line.pop(0))
@@ -60,9 +60,11 @@ class database:
                     newColumn = np.append(newColumn, float(line.pop(0)))
                     velColumn = np.append(velColumn, float(line.pop(0)))
                     acc = float(line.pop(0))
+                newColumn = newColumn.reshape((len(newColumn), 1))
                 self.U = np.append(self.U, newColumn, axis=1)
-            self.Uinit = newColumn
-            self.Udotinit = velColumn
+            self.Uinit = np.copy(newColumn)
+            velColumn = velColumn.reshape((len(velColumn), 1))
+            self.Udotinit = np.copy(velColumn)
             print('Completed reading')
 
     def __readFileAero(self):
@@ -110,7 +112,7 @@ class database:
     def getModifiedStateSVD(self, plot=False):
         Xmean = np.mean(self.X[:, :-1], axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
-        Umean = np.mean(self.U[:, -1], axis=1)
+        Umean = np.mean(self.U[:, :-1], axis=1)
         Umean = Umean.reshape((len(Umean), 1))
 
         U, S, VT = self.__performSVD(plot, self.X[:, 1:] - Xmean, self.U[:, 1:] - Umean)
@@ -118,14 +120,15 @@ class database:
         return U, S, VT, Xmean, Umean
 
     def __performSVD(self, plot, M1, M2=None):
-        if M2:
+        if M2 is not None:
             U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0), full_matrices=False)
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
 
-        tsh = self.getOptimalThreshold(S)
-        cut = (np.diag(S) > tsh).argmax() - 1
+        tsh = self.getOptimalThreshold(np.diag(S))
+        cut = (S > tsh).argmax() - 1
         U = U[:, :cut]
+        S = np.diag(S)
         S = S[:cut, :cut]
         VT = VT[:cut, :]
 

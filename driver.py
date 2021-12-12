@@ -58,7 +58,7 @@ def main():
 
     # Double check that the number of histories correspond to the requested dimension
     if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
-        raise Exception('Please provide history files in the same number as specified in the -d option')
+        raise Exception('Please provide history files in the same number as specified in the DIMENSION option')
 
     # Create the physical model
     model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
@@ -76,17 +76,17 @@ def main():
         inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
 
         # Run the prediction step
-        modalForces = np.empty((inputs.U.shape()[0], 0), dtype=float)
+        modalForces = np.empty((inputs.U.shape[0], 0), dtype=float)
         forces = np.empty((0), dtype=float)
-        for i in range(inputs.U.shape()[1]):
+        for i in range(inputs.U.shape[1]):
             modalForces = np.append(modalForces, ROM.predict(inputs.U[:, i]), axis=1)
             ROM.update()
-            forces = np.append(forces, ROM.model.getCl(ROM.model.X))
+            forces = np.append(forces, ROM.model.getCl(ROM.Up.dot(ROM.X)+ROM.Xmean))
 
         # Print the obtained modal forces to file
         with open(configuration["OUTPUTS"], 'w') as file:
-            for i in range(forces.shape()[1]):
-                toPrint = str(forces[i])
+            for i in range(len(forces)):
+                toPrint = str(forces[i])+'\n'
                 file.write(toPrint)
     else:
         import structure
@@ -94,19 +94,19 @@ def main():
                                "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
                                "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
-        solver.writeSolution(solver.timeIter)
+        solver.writeSolution()
         for timeIter in range(int(configuration["TIME_ITER"])):
             solver.applyload(np.array(ROM.predict(solver.q)))
             solver.run()
             solver.updateSolution()
             ROM.update()
-            solver.writeSolution(solver.timeIter)
+            solver.writeSolution()
 
 
 def readConfig(cfgFile):
     input_file = open(cfgFile)
     configuration = {}
-    while 1:
+    while True:
         line = input_file.readline()
         if not line:
             break
@@ -120,9 +120,16 @@ def readConfig(cfgFile):
         this_param = line[0].strip()
         this_value = line[1].strip()
 
-        configuration[this_param] = this_value
+        if this_param == "STRUCT_HISTORY" or this_param == "AERO_HISTORY":
+            configuration[this_param] = eval(this_value)
+        elif this_param == 'DIMENSION':
+            configuration[this_param] = int(this_value)
+        elif this_param == "MODAL_DAMP":
+            configuration[this_param] = float(this_value)
+        else:
+            configuration[this_param] = this_value
 
-        return configuration
+    return configuration
 
 
 if __name__ == '__main__':
