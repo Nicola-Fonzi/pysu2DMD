@@ -71,7 +71,7 @@ def main():
     # Build the ROM
     ROM = aerodynamics.ROM(databases, model)
 
-    if configuration["IMPOSED_MOTION"]=="YES":
+    if configuration["IMPOSED_MOTION"] == "YES":
         # Build the future inputs class
         inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
 

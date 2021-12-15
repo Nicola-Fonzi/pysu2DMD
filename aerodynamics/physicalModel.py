@@ -82,7 +82,7 @@ class physicalModel:
                 for i in range(len(line)):
                     line[i] = line[i].strip('"[')
                     line[i] = line[i].strip(']"')
-                self.normals.append(nodeNormal(int(line[0]), float(line[1]), float(line[2]), float(line[3])))
+                self.normals.append(nodeNormal(int(line[0]), -float(line[1]), -float(line[2]), -float(line[3])))
         print('Completed reading')
 
     def __readFileModes(self):
@@ -139,8 +139,12 @@ class physicalModel:
     def __getFiles(self):
         path, extension = os.path.splitext(self.filenameModes)
         endPaths = glob.glob(path + '*')
+        paths = []
+        for i in range(len(endPaths)):
+            if ".vtu" not in endPaths[i]:
+                paths.append(endPaths[i])
         undeformedPath = os.path.join(os.path.split(self.filenameModes)[0], 'Undeformed') + extension
-        return endPaths, undeformedPath
+        return paths, undeformedPath
 
     def __sortPoints(self):
         self.normals.sort()

@@ -72,6 +72,7 @@ class database:
         print('Starting the reading of ' + os.path.split(self.filenameAero)[1] + ' files.')
         XtoSet = True
         for timeIter in self.timeIter:
+            print('Opened file {} of {}'.format(timeIter, np.max(self.timeIter)))
             newColumn = np.empty((0))
             fileName = path+'_{:05d}'.format(timeIter)+extension
             with open(fileName, 'r') as file:
@@ -80,9 +81,9 @@ class database:
                 headerLine = headerLine.split(',')
                 for element in range(len(headerLine)):
                     headerLine[element] = headerLine[element].strip()
-                if '"Pressure_Coefficient"' not in headerLine:
-                    raise Exception('Pressure_Coefficient must be requested as an output to the fluid solver')
-                indexCp = headerLine.index('"Pressure_Coefficient"')
+                if '"Pressure"' not in headerLine:
+                    raise Exception('Pressure must be requested as an output to the fluid solver')
+                indexCp = headerLine.index('"Pressure"')
                 indexID = headerLine.index('"PointID"')
                 while True:
                     line = file.readline()
@@ -135,7 +136,8 @@ class database:
         if plot:
             from matplotlib import pyplot as plt
             n = len(np.diag(S)) + 1
-            plt.stackplot(range(1, n), np.diag(S), np.ones(shape=(1, n), dtype=float) * tsh)
+            plt.plot(range(1, n), np.diag(S))
+            plt.plot(range(1, n), np.ones(shape=(1, n - 1), dtype=float) * tsh)
             plt.show()
 
         return U, S, VT

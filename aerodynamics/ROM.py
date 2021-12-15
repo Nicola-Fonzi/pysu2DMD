@@ -53,7 +53,7 @@ class ROM:
 
     def __setInitialCondition(self):
         # TODO we need to treat the different operating conditions and "mix" the initial conditions
-        self.X = self.Up.conj().T.dot(self.databases[0].Xinit)
+        self.X = self.Up.conj().T.dot(self.databases[0].Xinit - self.Xmean)
         self.Xnew = self.X
 
     def predict(self, inputs):
