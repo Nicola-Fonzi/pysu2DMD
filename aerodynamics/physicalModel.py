@@ -112,6 +112,7 @@ class physicalModel:
 
         print('Obtain now the deformation due to modes')
         for mode in range(len(files)):
+            print('Opened file {} of {}'.format(mode, len(files)))
             newColumn = []
             with open(files[mode], 'r') as file:
                 headerLine = file.readline()
