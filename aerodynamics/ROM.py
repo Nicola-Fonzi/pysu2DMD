@@ -51,9 +51,12 @@ class ROM:
             self.Umean = Umean
             self.Up = Up
 
-    def __setInitialCondition(self):
+    def __setInitialCondition(self, customInitial=None):
         # TODO we need to treat the different operating conditions and "mix" the initial conditions
-        self.X = self.Up.conj().T.dot(self.databases[0].Xinit - self.Xmean)
+        if customInitial is not None:
+            self.X = self.Up.conj().T.dot(customInitial - self.Xmean)
+        else:
+            self.X = self.Up.conj().T.dot(self.databases[0].Xinit - self.Xmean)
         self.Xnew = self.X
 
     def predict(self, inputs):
