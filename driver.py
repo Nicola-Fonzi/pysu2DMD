@@ -79,9 +79,10 @@ def main():
         modalForces = np.empty((inputs.U.shape[0], 0), dtype=float)
         forces = np.empty((0), dtype=float)
         for i in range(inputs.U.shape[1]):
-            modalForces = np.append(modalForces, ROM.predict(inputs.U[:, i]), axis=1)
+            aeroState = ROM.predict(inputs.U[:, i])
+            modalForces = np.append(modalForces, ROM.getModalforces(), axis=1)
+            forces = np.append(forces, ROM.getLift())
             ROM.update()
-            forces = np.append(forces, ROM.model.getCl(ROM.Up.dot(ROM.X)+ROM.Xmean))
 
         # Print the obtained modal forces to file
         with open(configuration["OUTPUTS"], 'w') as file:
@@ -96,7 +97,8 @@ def main():
         solver = structure.solver(solverConfiguration)
         solver.writeSolution()
         for timeIter in range(int(configuration["TIME_ITER"])):
-            solver.applyload(np.array(ROM.predict(solver.q)))
+            aeroState = ROM.predict(solver.q)
+            solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
             solver.updateSolution()
             ROM.update()
@@ -126,6 +128,14 @@ def readConfig(cfgFile):
             configuration[this_param] = int(this_value)
         elif this_param == "MODAL_DAMP":
             configuration[this_param] = float(this_value)
+        elif this_param == "THRESHOLDING":
+            try:
+                configuration[this_param] = int(this_value)
+            except ValueError:
+                if this_value == "OPTIMAL":
+                    configuration[this_param] = 0
+                else:
+                    configuration[this_param] = -1
         else:
             configuration[this_param] = this_value
 

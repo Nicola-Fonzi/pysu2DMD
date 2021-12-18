@@ -13,10 +13,11 @@ class database:
     the SVD of the matrices.
     """
 
-    def __init__(self, filenameStru, filenameAero):
+    def __init__(self, filenameStru, filenameAero, thresholding):
         print('Creating the database for the reduced order model.')
         self.filenameStru = filenameStru          # The file where to read the structural history
         self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
+        self.thresholding = thresholding          # Specifies the way we want to reduce the system dimension
         self.timeIter = np.empty((0), dtype=int)  # The time iterations at which history has been saved
         self.pointID = np.empty((0), dtype=int)   # IDs of the points in the aero history
         self.deltaT = None                        # Time step size
@@ -102,43 +103,47 @@ class database:
         self.Xinit = newColumn
         print('Completed reading')
 
-    def getShiftedStateSVD(self, plot=False):
-        Xmean = np.mean(self.X[:, 1:], axis=1)
+    def getShiftedStateSVD(self):
+        Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(plot, self.X[:, 1:] - Xmean)
+        U, S, VT = self.__performSVD(self.X[:, 1:] - Xmean)
 
         return U, S, VT, Xmean
 
-    def getModifiedStateSVD(self, plot=False):
-        Xmean = np.mean(self.X[:, :-1], axis=1)
+    def getModifiedStateSVD(self):
+        Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
-        Umean = np.mean(self.U[:, :-1], axis=1)
-        Umean = Umean.reshape((len(Umean), 1))
 
-        U, S, VT = self.__performSVD(plot, self.X[:, 1:] - Xmean, self.U[:, 1:] - Umean)
+        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1])
 
-        return U, S, VT, Xmean, Umean
+        return U, S, VT
 
-    def __performSVD(self, plot, M1, M2=None):
+    def __performSVD(self, M1, M2=None):
         if M2 is not None:
             U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0), full_matrices=False)
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
-
-        tsh = self.getOptimalThreshold(np.diag(S))
-        cut = (S > tsh).argmax() - 1
-        U = U[:, :cut]
         S = np.diag(S)
-        S = S[:cut, :cut]
-        VT = VT[:cut, :]
 
-        if plot:
+        if self.thresholding == 0:
+            tsh = self.getOptimalThreshold(S)
+            cut = (np.diag(S) > tsh).argmin() - 1
+        elif self.thresholding > 0:
+            cut = self.thresholding
+        else:
             from matplotlib import pyplot as plt
             n = len(np.diag(S)) + 1
+            tsh = self.getOptimalThreshold(S)
             plt.plot(range(1, n), np.diag(S))
-            plt.plot(range(1, n), np.ones(shape=(1, n - 1), dtype=float) * tsh)
+            plt.plot(range(1, n), np.ones(shape=(n - 1, 1), dtype=float) * tsh)
             plt.show()
+            print("Please enter the required cutting point. The horizontal line represent the 'optimal' one.")
+            cut = int(input())
+
+        U = U[:, :cut]
+        S = S[:cut, :cut]
+        VT = VT[:cut, :]
 
         return U, S, VT
 

@@ -23,7 +23,6 @@ class ROM:
         self.X = None                                 # Aerodynamic state
         self.Xnew = None                              # Next time level aerodynamic state
         self.Xmean = None                             # Mean of the physiscal state
-        self.Umean = None                             # Mean of the inputs
         self.Up = None                                # Projection operator
         for i in range(1, len(self.databases)):
             if databases[i].deltaT != self.deltaT:
@@ -33,22 +32,22 @@ class ROM:
         if not self.model.normals == self.databases[0].pointID.tolist():
             raise Exception('Cps are not defined on the same cells as for the definition of the normals')
 
-
     def __createABmatrices(self):
         if len(self.databases) > 1:
             raise Exception('Multiple databases not yet supported')
 
         for i in range(len(self.databases)):
-            U, S, VT, Xmean, Umean = self.databases[i].getModifiedStateSVD()
-            Up, Sp, VTp, Xpmean = self.databases[i].getShiftedStateSVD()
+            U, S, VT = self.databases[i].getModifiedStateSVD()
+            Up, Sp, VTp, Xmean = self.databases[i].getShiftedStateSVD()
             n = self.databases[i].X.shape[0]
             q = self.databases[i].U.shape[0]
             U_1 = U[:n, :]
             U_2 = U[n:, :]
-            self.A = np.linalg.multi_dot([Up.conj().T, Up, Sp, VTp, VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
-            self.B = np.linalg.multi_dot([Up.conj().T, Up, Sp, VTp, VT.conj().T, np.linalg.inv(S), U_2.conj().T])
+            self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+                                          np.linalg.inv(S), U_1.conj().T, Up])
+            self.B = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+                                          np.linalg.inv(S), U_2.conj().T])
             self.Xmean = Xmean
-            self.Umean = Umean
             self.Up = Up
 
     def __setInitialCondition(self, customInitial=None):
@@ -61,11 +60,17 @@ class ROM:
 
     def predict(self, inputs):
         # TODO we need to treat the different operating conditions
-        inputs = inputs - self.Umean
+        inputs = inputs.reshape((len(inputs), 1))
         self.Xnew = self.A.dot(self.X) + self.B.dot(inputs)
-        forces = self.model.getModalForces(self.Up.dot(self.Xnew)+self.Xmean)
+        return self.Xnew
 
+    def getModalforces(self):
+        forces = self.model.getModalForces(self.Up.dot(self.Xnew) + self.Xmean)
         return forces
+
+    def getLift(self):
+        lift = self.model.getCl(self.Up.dot(self.Xnew) + self.Xmean)
+        return lift
 
     def update(self):
         self.X = self.Xnew
