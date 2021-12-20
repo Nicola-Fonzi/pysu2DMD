@@ -22,6 +22,7 @@ class database:
         self.pointID = np.empty((0), dtype=int)   # IDs of the points in the aero history
         self.deltaT = None                        # Time step size
         self.U = None                             # Structural snapshot matrix
+        self.Udot = None                          # Structural velocity snapshot matrix
         self.X = None                             # Aero snapshot matrix
         self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
         self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
@@ -39,6 +40,7 @@ class database:
             headerLine = headerLine.split('\t')
             nModes = int((len(headerLine)-3)/3)
             self.U = np.empty((nModes, 0))
+            self.Udot = np.empty((nModes, 0))
             timeOld = None
             while True:
                 line = file.readline()
@@ -62,9 +64,10 @@ class database:
                     velColumn = np.append(velColumn, float(line.pop(0)))
                     acc = float(line.pop(0))
                 newColumn = newColumn.reshape((len(newColumn), 1))
+                velColumn = velColumn.reshape((len(velColumn), 1))
                 self.U = np.append(self.U, newColumn, axis=1)
+                self.Udot = np.append(self.Udot, velColumn, axis=1)
             self.Uinit = np.copy(newColumn)
-            velColumn = velColumn.reshape((len(velColumn), 1))
             self.Udotinit = np.copy(velColumn)
             print('Completed reading')
 
@@ -115,13 +118,13 @@ class database:
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1])
+        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, :-1])
 
         return U, S, VT
 
-    def __performSVD(self, M1, M2=None):
+    def __performSVD(self, M1, M2=None, M3=None):
         if M2 is not None:
-            U, S, VT = np.linalg.svd(np.append(M1, M2, axis=0), full_matrices=False)
+            U, S, VT = np.linalg.svd(np.append(M1, M2, M3, axis=0), full_matrices=False)
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
         S = np.diag(S)

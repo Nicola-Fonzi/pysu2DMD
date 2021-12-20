@@ -42,11 +42,15 @@ class ROM:
             n = self.databases[i].X.shape[0]
             q = self.databases[i].U.shape[0]
             U_1 = U[:n, :]
-            U_2 = U[n:, :]
+            U_2 = U[n:n+q, :]
+            U_3 = U[n+q:, :]
             self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_1.conj().T, Up])
-            self.B = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+            B_1 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_2.conj().T])
+            B_2 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+                                          np.linalg.inv(S), U_3.conj().T])
+            self.B = np.append(B_1, B_2, axis=0)
             self.Xmean = Xmean
             self.Up = Up
 
@@ -58,9 +62,11 @@ class ROM:
             self.X = self.Up.conj().T.dot(self.databases[0].Xinit - self.Xmean)
         self.Xnew = self.X
 
-    def predict(self, inputs):
+    def predict(self, inputs_q, inputs_qdot):
         # TODO we need to treat the different operating conditions
-        inputs = inputs.reshape((len(inputs), 1))
+        inputs_q = inputs_q.reshape((len(inputs_q), 1))
+        inputs_qdot = inputs_qdot.reshape((len(inputs_qdot), 1))
+        inputs = np.append(inputs_q, inputs_qdot, axis=0)
         self.Xnew = self.A.dot(self.X) + self.B.dot(inputs)
         return self.Xnew
 

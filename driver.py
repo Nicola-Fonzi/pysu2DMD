@@ -10,6 +10,7 @@ class inputClass:
         self.inputFile = inputFile
         self.deltaT = None
         self.U = None
+        self.Udot = None
         self.__readInputFile()
         if self.deltaT != deltaT:
             raise Exception(
@@ -24,9 +25,11 @@ class inputClass:
             headerLine = headerLine.split('\t')
             nModes = int((len(headerLine) - 3) / 3)
             self.U = np.empty((nModes, 0))
+            self.Udot = np.empty((nModes, 0))
             timeOld = None
             while True:
                 newColumn = np.empty((nModes, 1))
+                velColumn = np.empty((nModes, 1))
                 line = file.readline()
                 if not line:
                     break
@@ -42,9 +45,10 @@ class inputClass:
                 dummy = line.pop(0)
                 for iMode in range(nModes):
                     newColumn[iMode] = float(line.pop(0))
-                    dummy = line.pop(0)
+                    velColumn[iMode] = float(line.pop(0))
                     dummy = line.pop(0)
                 self.U = np.append(self.U, newColumn, axis=1)
+                self.Udot = np.append(self.U, newColumn, axis=1)
             print('Completed reading')
 
 
@@ -79,7 +83,7 @@ def main():
         modalForces = np.empty((inputs.U.shape[0], 0), dtype=float)
         forces = np.empty((0), dtype=float)
         for i in range(inputs.U.shape[1]):
-            aeroState = ROM.predict(inputs.U[:, i])
+            aeroState = ROM.predict(inputs.U[:, i], inputs.Udot[:, i])
             modalForces = np.append(modalForces, ROM.getModalforces(), axis=1)
             forces = np.append(forces, ROM.getLift())
             ROM.update()
@@ -97,7 +101,7 @@ def main():
         solver = structure.solver(solverConfiguration)
         solver.writeSolution()
         for timeIter in range(int(configuration["TIME_ITER"])):
-            aeroState = ROM.predict(solver.q)
+            aeroState = ROM.predict(solver.q, solver.qdot)
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
             solver.updateSolution()
