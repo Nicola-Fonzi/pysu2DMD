@@ -44,11 +44,11 @@ class ROM:
             U_1 = U[:n, :]
             U_2 = U[n:n+q, :]
             U_3 = U[n+q:, :]
-            self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+            self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 2:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_1.conj().T, Up])
-            B_1 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+            B_1 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 2:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_2.conj().T])
-            B_2 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
+            B_2 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 2:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_3.conj().T])
             self.B = np.append(B_1, B_2, axis=1)
             self.Xmean = Xmean

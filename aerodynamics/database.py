@@ -9,11 +9,11 @@ from scipy import integrate
 class database:
     """
     Class containing all the training data later used for the creation of the ROM.
-    It reads the file, store the required info, assamble the matrices, and provide
+    It reads the file, store the required info, assemble the matrices, and provide
     the SVD of the matrices.
     """
 
-    def __init__(self, filenameStru, filenameAero, thresholding):
+    def __init__(self, filenameStru, filenameAero, thresholding=0):
         print('Creating the database for the reduced order model.')
         self.filenameStru = filenameStru          # The file where to read the structural history
         self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
@@ -42,6 +42,8 @@ class database:
             self.U = np.empty((nModes, 0))
             self.Udot = np.empty((nModes, 0))
             timeOld = None
+            newColumn = None
+            velColumn = None
             while True:
                 line = file.readline()
                 if not line:
@@ -75,6 +77,7 @@ class database:
         path, extension = os.path.splitext(self.filenameAero)
         print('Starting the reading of ' + os.path.split(self.filenameAero)[1] + ' files.')
         XtoSet = True
+        newColumn = None
         for timeIter in self.timeIter:
             print('Opened file {} of {}'.format(timeIter, np.max(self.timeIter)))
             newColumn = np.empty((0))
@@ -103,14 +106,14 @@ class database:
                 XtoSet = False
             newColumn = newColumn.reshape((len(newColumn), 1))
             self.X = np.append(self.X, newColumn, axis=1)
-        self.Xinit = newColumn
+        self.Xinit = np.copy(newColumn)
         print('Completed reading')
 
     def getShiftedStateSVD(self):
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, 1:] - Xmean)
+        U, S, VT = self.__performSVD(self.X[:, 2:] - Xmean)
 
         return U, S, VT, Xmean
 
@@ -118,7 +121,7 @@ class database:
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, 1:])
+        U, S, VT = self.__performSVD(self.X[:, 1:-1] - Xmean, self.U[:, 1:-1], self.Udot[:, :-2])
 
         return U, S, VT
 
