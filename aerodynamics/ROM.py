@@ -50,7 +50,7 @@ class ROM:
                                           np.linalg.inv(S), U_2.conj().T])
             B_2 = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xmean, VT.conj().T,
                                           np.linalg.inv(S), U_3.conj().T])
-            self.B = np.append(B_1, B_2, axis=0)
+            self.B = np.append(B_1, B_2, axis=1)
             self.Xmean = Xmean
             self.Up = Up
 

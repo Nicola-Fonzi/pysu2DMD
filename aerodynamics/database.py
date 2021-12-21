@@ -118,13 +118,14 @@ class database:
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, :-1])
+        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, 1:])
 
         return U, S, VT
 
     def __performSVD(self, M1, M2=None, M3=None):
         if M2 is not None:
-            U, S, VT = np.linalg.svd(np.append(M1, M2, M3, axis=0), full_matrices=False)
+            M = np.append(M1, M2, axis=0)
+            U, S, VT = np.linalg.svd(np.append(M, M3, axis=0), full_matrices=False)
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
         S = np.diag(S)
