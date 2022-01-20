@@ -26,10 +26,12 @@ class inputClass:
             nModes = int((len(headerLine) - 3) / 3)
             self.U = np.empty((nModes, 0))
             self.Udot = np.empty((nModes, 0))
+            self.Uddot = np.empty((nModes, 0))
             timeOld = None
             while True:
                 newColumn = np.empty((nModes, 1))
                 velColumn = np.empty((nModes, 1))
+                accColumn = np.empty((nModes, 1))
                 line = file.readline()
                 if not line:
                     break
@@ -46,9 +48,10 @@ class inputClass:
                 for iMode in range(nModes):
                     newColumn[iMode] = float(line.pop(0))
                     velColumn[iMode] = float(line.pop(0))
-                    dummy = line.pop(0)
+                    accColumn[iMode] = float(line.pop(0))
                 self.U = np.append(self.U, newColumn, axis=1)
-                self.Udot = np.append(self.U, newColumn, axis=1)
+                self.Udot = np.append(self.Udot, velColumn, axis=1)
+                self.Uddot = np.append(self.Uddot, accColumn, axis=1)
             print('Completed reading')
 
 
@@ -70,10 +73,11 @@ def main():
     # Gather the databases
     databases = []
     for i in range(int(configuration["DIMENSION"])):
-        databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i], configuration["AERO_HISTORY"][i]))
+        databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i],
+                                               configuration["AERO_HISTORY"][i]), configuration["THRESHOLDING"])
 
     # Build the ROM
-    ROM = aerodynamics.ROM(databases, model)
+    ROM = aerodynamics.ROM(databases, model, configuration["STABILISATION"])
 
     if configuration["IMPOSED_MOTION"] == "YES":
         # Build the future inputs class
@@ -83,7 +87,7 @@ def main():
         modalForces = np.empty((inputs.U.shape[0], 0), dtype=float)
         forces = np.empty((0), dtype=float)
         for i in range(inputs.U.shape[1]):
-            aeroState = ROM.predict(inputs.U[:, i], inputs.Udot[:, i])
+            aeroState = ROM.predict(inputs.U[:, i], inputs.Udot[:, i], inputs.Uddot[:, i])
             modalForces = np.append(modalForces, ROM.getModalforces(), axis=1)
             forces = np.append(forces, ROM.getLift())
             ROM.update()
@@ -101,7 +105,7 @@ def main():
         solver = structure.solver(solverConfiguration)
         solver.writeSolution()
         for timeIter in range(int(configuration["TIME_ITER"])):
-            aeroState = ROM.predict(solver.q, solver.qdot)
+            aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
             solver.updateSolution()
@@ -138,8 +142,20 @@ def readConfig(cfgFile):
             except ValueError:
                 if this_value == "OPTIMAL":
                     configuration[this_param] = 0
-                else:
+                elif this_value == "INTERACTIVE":
                     configuration[this_param] = -1
+                else:
+                    raise Exception("Thresholding type not recognised")
+        elif this_param == "STABILISATION":
+            try:
+                configuration[this_param] = float(this_value)
+            except ValueError:
+                if this_value == "FLIP":
+                    configuration[this_param] = 1
+                elif this_value == "BRUNTON":
+                    configuration[this_param] = 2
+                else:
+                    configuration[this_param] = 0
         else:
             configuration[this_param] = this_value
 

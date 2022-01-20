@@ -23,6 +23,7 @@ class database:
         self.deltaT = None                        # Time step size
         self.U = None                             # Structural snapshot matrix
         self.Udot = None                          # Structural velocity snapshot matrix
+        self.Uddot = None                         # Structural acceleration snapshot matrix
         self.X = None                             # Aero snapshot matrix
         self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
         self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
@@ -41,6 +42,7 @@ class database:
             nModes = int((len(headerLine)-3)/3)
             self.U = np.empty((nModes, 0))
             self.Udot = np.empty((nModes, 0))
+            self.Uddot = np.empty((nModes, 0))
             timeOld = None
             newColumn = None
             velColumn = None
@@ -49,7 +51,8 @@ class database:
                 if not line:
                     break
                 newColumn = np.empty((0))
-                velColumn = newColumn
+                velColumn = np.empty((0))
+                accColumn = np.empty((0))
                 line = line.strip('\r\n')
                 line = line.split('\t')
                 time = float(line.pop(0))
@@ -64,11 +67,13 @@ class database:
                 for iMode in range(nModes):
                     newColumn = np.append(newColumn, float(line.pop(0)))
                     velColumn = np.append(velColumn, float(line.pop(0)))
-                    acc = float(line.pop(0))
+                    accColumn = np.append(accColumn, float(line.pop(0)))
                 newColumn = newColumn.reshape((len(newColumn), 1))
                 velColumn = velColumn.reshape((len(velColumn), 1))
+                accColumn = accColumn.reshape((len(accColumn), 1))
                 self.U = np.append(self.U, newColumn, axis=1)
                 self.Udot = np.append(self.Udot, velColumn, axis=1)
+                self.Uddot = np.append(self.Uddot, accColumn, axis=1)
             self.Uinit = np.copy(newColumn)
             self.Udotinit = np.copy(velColumn)
             print('Completed reading')
@@ -79,7 +84,7 @@ class database:
         XtoSet = True
         newColumn = None
         for timeIter in self.timeIter:
-            print('Opened file {} of {}'.format(timeIter, np.max(self.timeIter)))
+            print('Opened time iter {}, last time iter is {}'.format(timeIter, np.max(self.timeIter)))
             newColumn = np.empty((0))
             fileName = path+'_{:05d}'.format(timeIter)+extension
             with open(fileName, 'r') as file:
@@ -113,7 +118,7 @@ class database:
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, 2:] - Xmean)
+        U, S, VT = self.__performSVD(self.X[:, 1:] - Xmean)
 
         return U, S, VT, Xmean
 
@@ -121,14 +126,16 @@ class database:
         Xmean = np.mean(self.X, axis=1)
         Xmean = Xmean.reshape((len(Xmean), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, 1:-1] - Xmean, self.U[:, 1:-1], self.Udot[:, :-2])
+        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, :-1],
+                                     self.Uddot[:, :-1])
 
         return U, S, VT
 
-    def __performSVD(self, M1, M2=None, M3=None):
+    def __performSVD(self, M1, M2=None, M3=None, M4=None):
         if M2 is not None:
             M = np.append(M1, M2, axis=0)
-            U, S, VT = np.linalg.svd(np.append(M, M3, axis=0), full_matrices=False)
+            M = np.append(M, M3, axis=0)
+            U, S, VT = np.linalg.svd(np.append(M, M4, axis=0), full_matrices=False)
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
         S = np.diag(S)
