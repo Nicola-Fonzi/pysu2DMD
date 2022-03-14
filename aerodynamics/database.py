@@ -4,6 +4,7 @@
 import numpy as np
 import os
 from scipy import integrate
+from sys import stdout
 
 # Class database
 class database:
@@ -14,7 +15,7 @@ class database:
     """
 
     def __init__(self, filenameStru, filenameAero, thresholding=0):
-        print('Creating the database for the reduced order model.')
+        print('Creating the database for the reduced order model.\n')
         self.filenameStru = filenameStru          # The file where to read the structural history
         self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
         self.thresholding = thresholding          # Specifies the way we want to reduce the system dimension
@@ -28,10 +29,10 @@ class database:
         self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
         self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
         self.Udotinit = None                      # Stru velocity
-        print('Importing the data from the files.')
+        print('Importing the data from the files.\n')
         self.__readFileStru()
         self.__readFileAero()
-        print('Done')
+        print('Done\n')
 
     def __readFileStru(self):
         with open(self.filenameStru, 'r') as file:
@@ -84,7 +85,8 @@ class database:
         XtoSet = True
         newColumn = None
         for timeIter in self.timeIter:
-            print('Opened time iter {}, last time iter is {}'.format(timeIter, np.max(self.timeIter)))
+            stdout.write("\rOpened time iter " + str(timeIter) + " last time iter is " + str(np.max(self.timeIter)))
+            stdout.flush()
             newColumn = np.empty((0))
             fileName = path+'_{:05d}'.format(timeIter)+extension
             with open(fileName, 'r') as file:
@@ -111,63 +113,85 @@ class database:
                 XtoSet = False
             newColumn = newColumn.reshape((len(newColumn), 1))
             self.X = np.append(self.X, newColumn, axis=1)
+        stdout.write("\n")
+        stdout.write("Completed reading\r")
+        stdout.write("\n")
+        stdout.flush()
         self.Xinit = np.copy(newColumn)
-        print('Completed reading')
 
-    def getShiftedStateSVD(self):
-        Xmean = np.mean(self.X, axis=1)
-        Xmean = Xmean.reshape((len(Xmean), 1))
+    def getSVD(self, brunton):
+        Xcenter = self.X[:, 0]
+        Xcenter = Xcenter.reshape((len(Xcenter), 1))
 
-        U, S, VT = self.__performSVD(self.X[:, 1:] - Xmean)
-
-        return U, S, VT, Xmean
-
-    def getModifiedStateSVD(self):
-        Xmean = np.mean(self.X, axis=1)
-        Xmean = Xmean.reshape((len(Xmean), 1))
-
-        U, S, VT = self.__performSVD(self.X[:, :-1] - Xmean, self.U[:, :-1], self.Udot[:, :-1],
-                                     self.Uddot[:, :-1])
-
-        return U, S, VT
+        if brunton is True:
+            import matplotlib.pyplot as plt
+            nModes = self.U.shape[0]
+            referenceSnapshots = np.empty((self.X.shape[0], nModes+1))
+            referenceSnapshots[:, 0] = self.X[:, 0]
+            referenceSnapshotsSlope = np.empty((self.X.shape[0], nModes))
+            stateToSubtract = np.zeros((self.X.shape[0], self.X.shape[1]))
+            for i in range(nModes):
+                plt.plot(np.array([x for x in range(self.U.shape[1])]), self.U[i, :])
+            plt.show()
+            for i in range(nModes):
+                print("Please select steady state for mode {}\n".format(i))
+                reference = int(input())
+                referenceSnapshots[:, i+1] = self.X[:, reference]
+                referenceSnapshotsSlope[:, i] = (referenceSnapshots[:, i+1] - referenceSnapshots[:, i])/self.U[i, reference]
+                for j in range(self.X.shape[1]):
+                    stateToSubtract[:, j] = stateToSubtract[:, j] + referenceSnapshotsSlope[:, i]*self.U[i, j]
+            import time
+            time.sleep(10)
+            U, S, VT = self.__performSVD(self.X[:, :-1] - Xcenter - stateToSubtract[:, :-1],
+                                         self.Udot[:, :-1], self.Uddot[:, :-1])
+            Up, Sp, VTp = self.__performSVD(self.X[:, 1:] - Xcenter - stateToSubtract[:, 1:])
+            return Up, Sp, VTp, Xcenter, U, S, VT, referenceSnapshotsSlope, stateToSubtract[:, 1:]
+        else:
+            U, S, VT = self.__performSVD(self.X[:, :-1] - Xcenter, self.U[:, :-1], self.Udot[:, :-1],
+                                         self.Uddot[:, :-1])
+            Up, Sp, VTp = self.__performSVD(self.X[:, 1:] - Xcenter)
+            return Up, Sp, VTp, Xcenter, U, S, VT, None, None
 
     def __performSVD(self, M1, M2=None, M3=None, M4=None):
         if M2 is not None:
             M = np.append(M1, M2, axis=0)
             M = np.append(M, M3, axis=0)
-            U, S, VT = np.linalg.svd(np.append(M, M4, axis=0), full_matrices=False)
+            if M4 is not None:
+                M = np.append(M, M4, axis=0)
+                U, S, VT = np.linalg.svd(M, full_matrices=False)
+            else:
+                U, S, VT = np.linalg.svd(M, full_matrices=False)
+            beta = M.shape[1]/M.shape[0]
         else:
             U, S, VT = np.linalg.svd(M1, full_matrices=False)
-        S = np.diag(S)
+            beta = M1.shape[1]/M1.shape[0]
 
         if self.thresholding == 0:
-            tsh = self.getOptimalThreshold(S)
-            cut = (np.diag(S) > tsh).argmin() - 1
+            tsh = self.getOptimalThreshold(beta, S)
+            cut = (S > tsh).argmin() - 1
         elif self.thresholding > 0:
             cut = self.thresholding
         else:
             from matplotlib import pyplot as plt
-            n = len(np.diag(S)) + 1
-            tsh = self.getOptimalThreshold(S)
-            plt.plot(range(1, n), np.diag(S))
+            n = len(S) + 1
+            tsh = self.getOptimalThreshold(beta, S)
+            plt.plot(range(1, n), S)
             plt.plot(range(1, n), np.ones(shape=(n - 1, 1), dtype=float) * tsh)
             plt.show()
-            print("Please enter the required cutting point. The horizontal line represent the 'optimal' one.")
-            cut = int(input())
+            cut = int(input("Please enter the required cutting point. The horizontal line represent the 'optimal' one.\n"))
 
         U = U[:, :cut]
-        S = S[:cut, :cut]
+        S = S[:cut]
         VT = VT[:cut, :]
 
-        return U, S, VT
+        return U, np.diag(S), VT
 
-    def getOptimalThreshold(self, M):
-        beta = M.shape[1]/M.shape[0]
+    def getOptimalThreshold(self, beta, Sig):
         w = (8 * beta) / (beta + 1 + np.sqrt(beta**2 + 14 * beta +1))
         lambda_star = np.sqrt(2 * (beta + 1) + w)
         mpMedian = self.__medianMarcenkoPastur(beta)
         coef = lambda_star / np.sqrt(mpMedian)
-        return coef*np.median(np.diag(M))
+        return coef*np.median(Sig)
 
     def __medianMarcenkoPastur(self, beta):
         lobnd = (1 - np.sqrt(beta))**2
