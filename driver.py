@@ -2,6 +2,7 @@
 from optparse import OptionParser  # use a parser for configuration
 import aerodynamics
 import numpy as np
+from sys import stdout
 
 
 class inputClass:
@@ -12,7 +13,7 @@ class inputClass:
         self.U = None
         self.Udot = None
         self.__readInputFile()
-        if self.deltaT != deltaT:
+        if (self.deltaT - deltaT) > 1e-16:
             raise Exception(
                 'The ROM has been trained with a time step of ' + str(deltaT) + ', but a time step of ' + str(
                     self.deltaT) + ' was found in the inputs')
@@ -55,13 +56,16 @@ class inputClass:
             print('Completed reading')
 
 
-def main():
-    parser = OptionParser()
-    parser.add_option("-f", "--file", dest="cfgFile",
-                      help="Read configuration from FILE", metavar="FILE", default=None)
+def main(cfgFile = None):
+    if cfgFile is None:
+        parser = OptionParser()
+        parser.add_option("-f", "--file", dest="cfgFile",
+                          help="Read configuration from FILE", metavar="FILE", default=None)
 
-    (options, args) = parser.parse_args()
-    configuration = readConfig(options.cfgFile)
+        (options, args) = parser.parse_args()
+        configuration = readConfig(options.cfgFile)
+    else:
+        configuration = readConfig(cfgFile)
 
     # Double check that the number of histories correspond to the requested dimension
     if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
@@ -74,7 +78,7 @@ def main():
     databases = []
     for i in range(int(configuration["DIMENSION"])):
         databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i],
-                                               configuration["AERO_HISTORY"][i]), configuration["THRESHOLDING"])
+                                               configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"]))
 
     # Build the ROM
     ROM = aerodynamics.ROM(databases, model, configuration["STABILISATION"])
@@ -84,19 +88,23 @@ def main():
         inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
 
         # Run the prediction step
-        modalForces = np.empty((inputs.U.shape[0], 0), dtype=float)
         forces = np.empty((0), dtype=float)
         for i in range(inputs.U.shape[1]):
+            stdout.write("\rTime iteration " + str(i + 1) + " of " + str(inputs.U.shape[1]))
+            stdout.flush()
             aeroState = ROM.predict(inputs.U[:, i], inputs.Udot[:, i], inputs.Uddot[:, i])
-            modalForces = np.append(modalForces, ROM.getModalforces(), axis=1)
             forces = np.append(forces, ROM.getLift())
             ROM.update()
 
-        # Print the obtained modal forces to file
+        stdout.write("\rCompleted time integration             \n")
+        stdout.flush()
+
+        # Print the obtained lift to file
         with open(configuration["OUTPUTS"], 'w') as file:
             for i in range(len(forces)):
-                toPrint = str(forces[i])+'\n'
-                file.write(toPrint)
+                file.write(str(forces[i])+'\n')
+
+        print("The output is stored in file "+configuration["OUTPUTS"])
     else:
         import structure
         solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT, "MODAL_DAMP": configuration["MODAL_DAMP"],
@@ -105,13 +113,16 @@ def main():
         solver = structure.solver(solverConfiguration)
         solver.writeSolution()
         for timeIter in range(int(configuration["TIME_ITER"])):
+            stdout.write("\rTime iteration " + str(timeIter + 1) + " of " + str(int(configuration["TIME_ITER"])))
+            stdout.flush()
             aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
             solver.updateSolution()
             ROM.update()
             solver.writeSolution()
-
+        stdout.write("\rCompleted time integration\n")
+        stdout.flush()
 
 def readConfig(cfgFile):
     input_file = open(cfgFile)
