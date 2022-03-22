@@ -15,7 +15,8 @@ class database:
     """
 
     def __init__(self, filenameStru, filenameAero, thresholding=0):
-        print('Creating the database for the reduced order model.\n')
+        print('\n')
+        print('Creating the database for the reduced order model.')
         self.filenameStru = filenameStru          # The file where to read the structural history
         self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
         self.thresholding = thresholding          # Specifies the way we want to reduce the system dimension
@@ -29,10 +30,10 @@ class database:
         self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
         self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
         self.Udotinit = None                      # Stru velocity
-        print('Importing the data from the files.\n')
+        print('Importing the data from the files.')
         self.__readFileStru()
         self.__readFileAero()
-        print('Done\n')
+        print('Done')
 
     def __readFileStru(self):
         with open(self.filenameStru, 'r') as file:
@@ -113,10 +114,7 @@ class database:
                 XtoSet = False
             newColumn = newColumn.reshape((len(newColumn), 1))
             self.X = np.append(self.X, newColumn, axis=1)
-        stdout.write("\n")
-        stdout.write("Completed reading\r")
-        stdout.write("\n")
-        stdout.flush()
+        print("\nCompleted reading")
         self.Xinit = np.copy(newColumn)
 
     def getSVD(self, brunton):
@@ -134,7 +132,7 @@ class database:
                 plt.plot(np.array([x for x in range(self.U.shape[1])]), self.U[i, :])
             plt.show()
             for i in range(nModes):
-                print("Please select steady state for mode {}\n".format(i))
+                print("Please select steady state for mode {}:".format(i))
                 reference = int(input())
                 referenceSnapshots[:, i+1] = self.X[:, reference]
                 referenceSnapshotsSlope[:, i] = (referenceSnapshots[:, i+1] - referenceSnapshots[:, i])/self.U[i, reference]
@@ -178,7 +176,8 @@ class database:
             plt.plot(range(1, n), S)
             plt.plot(range(1, n), np.ones(shape=(n - 1, 1), dtype=float) * tsh)
             plt.show()
-            cut = int(input("Please enter the required cutting point. The horizontal line represent the 'optimal' one.\n"))
+            cut = int(input("Please enter the required cutting point."
+                            "The horizontal line represent the 'optimal' one:"))
 
         U = U[:, :cut]
         S = S[:cut]

@@ -3,6 +3,7 @@ from optparse import OptionParser  # use a parser for configuration
 import aerodynamics
 import numpy as np
 from sys import stdout
+import os
 
 
 class inputClass:
@@ -95,9 +96,7 @@ def main(cfgFile = None):
             aeroState = ROM.predict(inputs.U[:, i], inputs.Udot[:, i], inputs.Uddot[:, i])
             forces = np.append(forces, ROM.getLift())
             ROM.update()
-
-        stdout.write("\rCompleted time integration             \n")
-        stdout.flush()
+        print("\nCompleted time integration")
 
         # Print the obtained lift to file
         with open(configuration["OUTPUTS"], 'w') as file:
@@ -106,23 +105,23 @@ def main(cfgFile = None):
 
         print("The output is stored in file "+configuration["OUTPUTS"])
     else:
+        os.chdir("..")
         import structure
+        os.chdir("Tutorials")
         solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT, "MODAL_DAMP": configuration["MODAL_DAMP"],
                                "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
                                "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
         solver.writeSolution()
+        solver.writeScreen()
         for timeIter in range(int(configuration["TIME_ITER"])):
-            stdout.write("\rTime iteration " + str(timeIter + 1) + " of " + str(int(configuration["TIME_ITER"])))
-            stdout.flush()
             aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
+            solver.writeSolution()
             solver.updateSolution()
             ROM.update()
-            solver.writeSolution()
-        stdout.write("\rCompleted time integration\n")
-        stdout.flush()
+        print("\nCompleted time integration")
 
 def readConfig(cfgFile):
     input_file = open(cfgFile)

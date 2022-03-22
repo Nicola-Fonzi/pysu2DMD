@@ -5,6 +5,7 @@
 import numpy as np
 import scipy.linalg as linalg
 import math
+from sys import stdout
 
 class solver:
     """
@@ -17,7 +18,7 @@ class solver:
         Constructor of the structural solver class.
         """
         print("\n")
-        print(" Configuring the structural solver for FSI simulation ".center(80, "-"))
+        print("Configuring the structural solver for FSI simulation")
         self.nmodes = configuration["N_MODES"]
         self.deltaT = configuration["DELTA_T"]
         self.outputFile = configuration["OUTPUTS"]
@@ -28,12 +29,10 @@ class solver:
             print("Assuming {}% of modal damping".format(self.modalDamping * 100))
         self.punchFile = configuration["PUNCH_FILE"]
 
-        print("\n")
-        print(" Creating the structural model ".center(80, "-"))
+        print("Creating the structural model")
         self.__setStructuralMatrices()
 
-        print("\n")
-        print(" Setting the integration parameters ".center(80, "-"))
+        print("Setting the integration parameters")
         self.__setIntegrationParameters()
         self.__setInitialConditions(configuration["INITIAL_MODES"], configuration["INITIAL_VEL"])
 
@@ -206,18 +205,12 @@ class solver:
         This method is the main function for advancing the solution of one time step.
         """
         self.__temporalIteration()
-        header = 'Time iter\t'
-        for imode in range(min([self.nmodes, 5])):
-            header = header + 'q' + str(imode + 1) + '\t' + 'qdot' + str(imode + 1) + '\t' + 'qddot' + str(
-                imode + 1) + '\t'
-        header = header + '\n'
-        print(header)
-        line = '{:6.4f}'.format(self.timeIter) + '\t'
+        line = '\r{}'.format(self.timeIter) + '\t'
         for imode in range(min([self.nmodes, 5])):
             line = line + '{:6.4f}'.format(float(self.q[imode])) + '\t' + '{:6.4f}'.format(
                 float(self.qdot[imode])) + '\t' + '{:6.4f}'.format(float(self.qddot[imode])) + '\t'
-        line = line + '\n'
-        print(line)
+        stdout.write(line)
+        stdout.flush()
 
     def __temporalIteration(self):
         """
@@ -257,6 +250,16 @@ class solver:
             res = self.M.dot(self.qddot) + self.C.dot(self.qdot) + self.K.dot(self.q) - self.F
 
         self.a += (1 - self.alpha_f) / (1 - self.alpha_m) * self.qddot
+
+    def writeScreen(self):
+        """
+        This method only writes an header that will be used during the time integration
+        """
+        line = 'Time iter\t'
+        for imode in range(min([self.nmodes, 5])):
+            line = line + 'q' + str(imode + 1) + '\t' + 'qdot' + str(imode + 1) + '\t' + 'qddot' + str(
+                imode + 1) + '\t'
+        print(line)
 
     def writeSolution(self):
         """
