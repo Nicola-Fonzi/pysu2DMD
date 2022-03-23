@@ -251,15 +251,19 @@ class solver:
 
         self.a += (1 - self.alpha_f) / (1 - self.alpha_m) * self.qddot
 
-    def writeScreen(self):
+    def writeHeader(self):
         """
-        This method only writes an header that will be used during the time integration
+        This method only writes an header that will be used during the time integration, both on screen and file
         """
         line = 'Time iter\t'
         for imode in range(min([self.nmodes, 5])):
             line = line + 'q' + str(imode + 1) + '\t' + 'qdot' + str(imode + 1) + '\t' + 'qddot' + str(
                 imode + 1) + '\t'
         print(line)
+        histFile = open(self.outputFile, "w")
+        line = line + '\n'
+        histFile.write(line)
+        histFile.close()
 
     def writeSolution(self):
         """

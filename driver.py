@@ -112,8 +112,8 @@ def main(cfgFile = None):
                                "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
                                "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
+        solver.writeHeader()
         solver.writeSolution()
-        solver.writeScreen()
         for timeIter in range(int(configuration["TIME_ITER"])):
             aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
             solver.applyload(np.array(ROM.getModalforces()))
