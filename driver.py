@@ -100,6 +100,7 @@ def main(cfgFile = None):
 
         # Print the obtained lift to file
         with open(configuration["OUTPUTS"], 'w') as file:
+            file.write("Lift\n")
             for i in range(len(forces)):
                 file.write(str(forces[i])+'\n')
 
