@@ -109,20 +109,31 @@ def main(cfgFile = None):
         os.chdir("..")
         import structure
         os.chdir("Tutorials")
-        solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT, "MODAL_DAMP": configuration["MODAL_DAMP"],
-                               "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
-                               "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
+        solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT,
+                               "MODAL_DAMP": configuration["MODAL_DAMP"],
+                               "PUNCH_FILE": configuration["PUNCH_FILE"],
+                               "INITIAL_MODES": ROM.databases[0].Uinit,
+                               "INITIAL_VEL": ROM.databases[0].Udotinit,
+                               "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
         solver.writeHeader()
         solver.writeSolution()
+        forces = np.empty((0), dtype=float)
         for timeIter in range(int(configuration["TIME_ITER"])):
             aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
+            forces = np.append(forces, ROM.getLift())
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
             solver.writeSolution()
             solver.updateSolution()
             ROM.update()
         print("\nCompleted time integration")
+
+        # Print the obtained lift to file
+        with open(configuration["OUTPUTS"]+"_lift", 'w') as file:
+            file.write("Lift\n")
+            for i in range(len(forces)):
+                file.write(str(forces[i]) + '\n')
 
 def readConfig(cfgFile):
     input_file = open(cfgFile)

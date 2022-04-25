@@ -76,8 +76,8 @@ class database:
                 self.U = np.append(self.U, newColumn, axis=1)
                 self.Udot = np.append(self.Udot, velColumn, axis=1)
                 self.Uddot = np.append(self.Uddot, accColumn, axis=1)
-            self.Uinit = np.copy(newColumn)
-            self.Udotinit = np.copy(velColumn)
+            self.Uinit = np.copy(self.U[:, 0].reshape((self.U.shape[0], 1)))
+            self.Udotinit = np.copy(self.Udot[:, 0].reshape((self.Udot.shape[0], 1)))
             print('Completed reading')
 
     def __readFileAero(self):
@@ -115,7 +115,7 @@ class database:
             newColumn = newColumn.reshape((len(newColumn), 1))
             self.X = np.append(self.X, newColumn, axis=1)
         print("\nCompleted reading")
-        self.Xinit = np.copy(newColumn)
+        self.Xinit = np.copy(self.X[:,0].reshape((self.X.shape[0], 1)))
 
     def getSVD(self, brunton):
         Xcenter = self.X[:, 0]
