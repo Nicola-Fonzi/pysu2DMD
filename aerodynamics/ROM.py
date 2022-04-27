@@ -63,12 +63,18 @@ class ROM:
             self.referenceSnapshotSlope = referenceSnapshotSlope
             self.Up = np.copy(Up)
 
-    def __setInitialCondition(self):
+    def __setInitialCondition(self, customInitial=None, customInitialInputs=None):
         # TODO we need to treat the different operating conditions and "mix" the initial conditions
         if self.stabilisation != 2:
-            self.Z = self.databases[0].Xinit - self.Xcenter
+            if customInitial is not None:
+                self.Z = customInitial - self.Xcenter
+            else:
+                self.Z = self.databases[0].Xinit - self.Xcenter
         else:
-            self.Z = self.databases[0].Xinit - self.Xcenter - self.referenceSnapshotSlope.dot(self.databases[0].Uinit)
+            if customInitial is not None:
+                self.Z = customInitial - self.Xcenter - self.referenceSnapshotSlope.dot(customInitialInputs)
+            else:
+                self.Z = self.databases[0].Xinit - self.Xcenter - self.referenceSnapshotSlope.dot(self.databases[0].Uinit)
 
         self.Z = self.Z.reshape((len(self.Z),1))
         self.X = self.Up.conj().T.dot(self.Z)
