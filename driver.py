@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from optparse import OptionParser  # use a parser for configuration
+import pickle
 import aerodynamics
 import numpy as np
 from sys import stdout
@@ -59,34 +59,37 @@ class inputClass:
 
 def main(cfgFile = None):
     if cfgFile is None:
-        parser = OptionParser()
-        parser.add_option("-f", "--file", dest="cfgFile",
-                          help="Read configuration from FILE", metavar="FILE", default=None)
-
-        (options, args) = parser.parse_args()
-        configuration = readConfig(options.cfgFile)
+        with open('ROM.dictionary', 'rb') as pickle_file:
+            pickle_object = pickle.load(pickle_file)
+            ROM = pickle_object["ROM"]
+            configuration = pickle_object["configuration"]
     else:
         configuration = readConfig(cfgFile)
 
-    # Double check that the number of histories correspond to the requested dimension
-    if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
-        raise Exception('Please provide history files in the same number as specified in the DIMENSION option')
+        # Double check that the number of histories correspond to the requested dimension
+        if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
+            raise Exception('Please provide history files in the same number as specified in the DIMENSION option')
 
-    # Create the physical model
-    model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
+        # Create the physical model
+        model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
 
-    # Gather the databases
-    databases = []
-    for i in range(int(configuration["DIMENSION"])):
-        databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i],
-                                               configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"]))
+        # Gather the databases
+        databases = []
+        for i in range(int(configuration["DIMENSION"])):
+            databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i],
+                                                   configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"]))
 
-    # Build the ROM
-    ROM = aerodynamics.ROM(databases, model, configuration["STABILISATION"])
+        # Build the ROM
+        ROM = aerodynamics.ROM(databases, model, configuration["STABILISATION"])
+
+        # Dump the ROM for future use, without the need to rebuild it
+        with open('ROM.dictionary', 'wb') as pickle_file:
+            pickle_object = {"ROM": ROM, "configuration": configuration}
+            pickle.dump(pickle_object, pickle_file)
 
     if configuration["IMPOSED_MOTION"] == "YES":
         # Build the future inputs class
-        inputs = inputClass(configuration["INPUTS"], databases[0].deltaT)
+        inputs = inputClass(configuration["INPUTS"], ROM.databases[0].deltaT)
 
         # Run the prediction step
         forces = np.empty((0), dtype=float)

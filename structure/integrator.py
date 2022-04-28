@@ -289,10 +289,6 @@ class solver:
         self.qdot_n = np.copy(self.qdot)
         self.qddot_n = np.copy(self.qddot)
         self.a_n = np.copy(self.a)
-        self.__reset(self.q)
-        self.__reset(self.qdot)
-        self.__reset(self.qddot)
-        self.__reset(self.a)
 
         self.timeIter += 1
 
