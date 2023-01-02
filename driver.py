@@ -118,12 +118,12 @@ def main(cfgFile = None):
         solver = structure.solver(solverConfiguration)
         solver.writeHeader()
         solver.writeSolution()
-        for timeIter in range(int(configuration["TIME_ITER"])):
+        for timeIter in range(1, int(configuration["TIME_ITER"])+1):
             aeroState = ROM.predict(solver.q, solver.qdot, solver.qddot)
             solver.applyload(np.array(ROM.getModalforces()))
             solver.run()
-            solver.writeSolution()
             solver.updateSolution()
+            solver.writeSolution()
             ROM.update()
         print("\nCompleted time integration")
 

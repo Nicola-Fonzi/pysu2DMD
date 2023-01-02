@@ -14,12 +14,13 @@ class database:
     the SVD of the matrices.
     """
 
-    def __init__(self, filenameStru, filenameAero, thresholding=0):
+    def __init__(self, filenameStru, filenameAero, thresholding=0, iterStep=1):
         print('\n')
         print('Creating the database for the reduced order model.')
         self.filenameStru = filenameStru          # The file where to read the structural history
         self.filenameAero = filenameAero          # The set of files where to read the aerodynamic history
         self.thresholding = thresholding          # Specifies the way we want to reduce the system dimension
+        self.iterStep = iterStep                  # Specifies the step between iterations in the database, usually 1
         self.timeIter = np.empty((0), dtype=int)  # The time iterations at which history has been saved
         self.pointID = np.empty((0), dtype=int)   # IDs of the points in the aero history
         self.deltaT = None                        # Time step size
@@ -33,6 +34,8 @@ class database:
         print('Importing the data from the files.')
         self.__readFileStru()
         self.__readFileAero()
+        if not self.iterStep == 1:
+            self.__deleteUnusedColumns()
         print('Done')
 
     def __readFileStru(self):
@@ -85,7 +88,10 @@ class database:
         print('Starting the reading of ' + os.path.split(self.filenameAero)[1] + ' files.')
         XtoSet = True
         newColumn = None
-        for timeIter in self.timeIter:
+        maxIter = np.amax(self.timeIter)+1
+        minIter = np.amin(self.timeIter)
+        self.iterVect = np.arange(minIter, maxIter, self.iterStep)
+        for timeIter in self.iterVect:
             stdout.write("\rOpened time iter " + str(timeIter) + " last time iter is " + str(np.max(self.timeIter)))
             stdout.flush()
             newColumn = np.empty((0))
@@ -116,6 +122,18 @@ class database:
             self.X = np.append(self.X, newColumn, axis=1)
         print("\nCompleted reading")
         self.Xinit = np.copy(self.X[:, 0].reshape((self.X.shape[0], 1)))
+
+    def __deleteUnusedColumns(self):
+        index = 0
+        delete = np.empty((0), dtype=int)
+        for timeIter in self.timeIter:
+            if timeIter not in self.iterVect:
+                delete = np.append(delete, index)
+            index += 1
+        self.U = np.delete(self.U, delete, 1)
+        self.Udot = np.delete(self.Udot, delete, 1)
+        self.Uddot = np.delete(self.Uddot, delete, 1)
+        self.timeIter = np.delete(self.timeIter, delete)
 
     def getSVD(self, brunton):
         Xcenter = self.X[:, 0]

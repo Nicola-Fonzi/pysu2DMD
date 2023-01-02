@@ -178,7 +178,9 @@ class solver:
 
         print('Setting initial conditions.')
         self.q = initialModes
+        self.q_n = np.copy(self.q)        
         self.qdot = initialVel
+        self.qdot_n = np.copy(self.qdot)
 
         RHS = np.zeros((self.nmodes, 1))
         RHS += self.F
