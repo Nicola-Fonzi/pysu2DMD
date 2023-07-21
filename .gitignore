@@ -1,5 +1,4 @@
 *.pyc
-.idea
 *.csv
 *.dat
 !Tutorials/data/inputsTutorial4.dat
