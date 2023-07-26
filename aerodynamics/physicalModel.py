@@ -154,18 +154,18 @@ class physicalModel:
         if not self.normals == self.shapes[0]:
             raise Exception('The cells for normals do not coincide with the cells in the shapes')
 
-    def getModalForces(self, Cp):
+    def getModalForces(self, Pressure):
         force = []
         for i in range(len(self.shapes)):
             force.append(0.0)
         for i in range(len(self.shapes)):
             for j in range(len(self.normals)):
-                nodalForcex, nodalForcey, nodalForcez = self.normals[j] * Cp[j]
+                nodalForcex, nodalForcey, nodalForcez = self.normals[j] * Pressure[j]
                 force[i] += nodeForce(1, nodalForcex, nodalForcey, nodalForcez) * self.shapes[i][j]
         return force
 
-    def getCl(self, Cp):
+    def getLift(self, Pressure):
         force = 0.0
         for j in range(len(self.normals)):
-            force += self.normals[j].nz * Cp[j]
+            force += self.normals[j].nz * Pressure[j]
         return force

@@ -28,9 +28,9 @@ class database:
         self.Udot = None                          # Structural velocity snapshot matrix
         self.Uddot = None                         # Structural acceleration snapshot matrix
         self.X = None                             # Aero snapshot matrix
-        self.Xinit = None                         # Aero state to be used for the initialisation of ROM (last snapshot)
-        self.Uinit = None                         # Stru state to be used for the initialisation of ROM (last snapshot)
-        self.Udotinit = None                      # Stru velocity
+        self.Xinit = None                         # Aero state to be used for the initialisation of ROM (first snapshot)
+        self.Uinit = None                         # Stru state to be used for the initialisation of ROM (first snapshot)
+        self.Udotinit = None                      # Stru velocity to be used for the initialisation of ROM (first snapshot)
         print('Importing the data from the files.')
         self.__readFileStru()
         self.__readFileAero()
@@ -104,7 +104,7 @@ class database:
                     headerLine[element] = headerLine[element].strip()
                 if '"Pressure"' not in headerLine:
                     raise Exception('Pressure must be requested as an output to the fluid solver')
-                indexCp = headerLine.index('"Pressure"')
+                indexPressure = headerLine.index('"Pressure"')
                 indexID = headerLine.index('"PointID"')
                 while True:
                     line = file.readline()
@@ -112,7 +112,7 @@ class database:
                         break
                     line = line.strip('\r\n')
                     line = line.split(',')
-                    newColumn = np.append(newColumn, float(line[indexCp]))
+                    newColumn = np.append(newColumn, float(line[indexPressure]))
                     if XtoSet:
                         self.pointID = np.append(self.pointID, int(line[indexID]))
             if XtoSet:

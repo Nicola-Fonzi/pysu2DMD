@@ -130,7 +130,7 @@ class ROM:
         return forces
 
     def getLift(self):
-        lift = self.model.getCl(self.Z)
+        lift = self.model.getLift(self.Z)
         return lift
 
     def update(self):
