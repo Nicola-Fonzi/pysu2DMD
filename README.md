@@ -9,4 +9,4 @@ naturally works with the open-source code SU2. However, provided that the input 
 
 The capabilities of the package have been presented at IFASD 2022. In order to reproduce the tutorials, it is required to have the related data.
 Due to the large dimension of the files, it was not possible to upload the data on github, but this is available by directly contacting the author at
-nicola.fonzi@polimi.it
+nicola.fonzi@outlook.com
