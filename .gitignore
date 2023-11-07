@@ -1,8 +1,7 @@
 *.pyc
 *.csv
 *.dat
-*testingRoutines*
-*.pkl
+*.ipynb
 !Tutorials/data/inputsTutorial4.dat
 !Tutorials/data/liftRefTutorial4.csv
 !Tutorials/data/outputsTutorial4.dat
