@@ -156,8 +156,6 @@ class database:
                 referenceSnapshotsSlope[:, i] = (referenceSnapshots[:, i+1] - referenceSnapshots[:, i])/self.U[i, reference]
                 for j in range(self.X.shape[1]):
                     stateToSubtract[:, j] = stateToSubtract[:, j] + referenceSnapshotsSlope[:, i]*self.U[i, j]
-            import time
-            time.sleep(10)
             U, S, VT = self.__performSVD(self.X[:, :-1] - Xcenter - stateToSubtract[:, :-1],
                                          self.Udot[:, :-1], self.Uddot[:, :-1])
             Up, Sp, VTp = self.__performSVD(self.X[:, 1:] - Xcenter - stateToSubtract[:, 1:])
@@ -229,8 +227,6 @@ class database:
         return (hibnd+lobnd)/2
 
     def __marPas(self, x0, beta):
-        if beta > 1:
-            raise Exception('Snapshot matrix must be such that number of columns is less than number of rows')
         top = (1 + np.sqrt(beta))**2
         bot = (1 - np.sqrt(beta))**2
         incMarPas, err = integrate.quad(self.__integrationFun, x0, top, args=(top, bot, beta,))
