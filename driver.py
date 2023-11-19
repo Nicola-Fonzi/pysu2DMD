@@ -66,21 +66,15 @@ def main(cfgFile = None):
     else:
         configuration = readConfig(cfgFile)
 
-        # Double check that the number of histories correspond to the requested dimension
-        if configuration["DIMENSION"] != len(configuration["STRUCT_HISTORY"]) or configuration["DIMENSION"] != len(configuration["AERO_HISTORY"]):
-            raise Exception('Please provide history files in the same number as specified in the DIMENSION option')
-
         # Create the physical model
         model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
 
-        # Gather the databases
-        databases = []
-        for i in range(int(configuration["DIMENSION"])):
-            databases.append(aerodynamics.database(configuration["STRUCT_HISTORY"][i],
-                                                   configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"]))
+        # Gather the database
+        database = aerodynamics.database(configuration["STRUCT_HISTORY"][i],
+                                            configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"])
 
         # Build the ROM
-        ROM = aerodynamics.ROM(databases, model, configuration["STABILISATION"])
+        ROM = aerodynamics.ROM(database, model, configuration["STABILISATION"])
 
         # Dump the ROM for future use, without the need to rebuild it
         with open('ROM.dictionary', 'wb') as pickle_file:
@@ -89,7 +83,7 @@ def main(cfgFile = None):
 
     if configuration["IMPOSED_MOTION"] == "YES":
         # Build the future inputs class
-        inputs = inputClass(configuration["INPUTS"], ROM.databases[0].deltaT)
+        inputs = inputClass(configuration["INPUTS"], ROM.database.deltaT)
 
         # Run the prediction step
         forces = np.empty((0), dtype=float)
@@ -113,8 +107,8 @@ def main(cfgFile = None):
         import structure
         os.chdir("Tutorials")
         solverConfiguration = {"N_MODES": ROM.nmodes, "DELTA_T": ROM.deltaT, "MODAL_DAMP": configuration["MODAL_DAMP"],
-                               "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.databases[0].Uinit,
-                               "INITIAL_VEL": ROM.databases[0].Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
+                               "PUNCH_FILE": configuration["PUNCH_FILE"], "INITIAL_MODES": ROM.database.Uinit,
+                               "INITIAL_VEL": ROM.database.Udotinit, "OUTPUTS": configuration["OUTPUTS"]}
         solver = structure.solver(solverConfiguration)
         solver.writeHeader()
         solver.writeSolution()
@@ -146,8 +140,6 @@ def readConfig(cfgFile):
 
         if this_param == "STRUCT_HISTORY" or this_param == "AERO_HISTORY":
             configuration[this_param] = eval(this_value)
-        elif this_param == 'DIMENSION':
-            configuration[this_param] = int(this_value)
         elif this_param == "MODAL_DAMP":
             configuration[this_param] = float(this_value)
         elif this_param == "THRESHOLDING":

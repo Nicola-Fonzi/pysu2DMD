@@ -7,17 +7,16 @@ import numpy as np
 class ROM:
     """
     Class containing the creation of the ROM. This, in turns, uses the database
-    obtained at different operating conditions and the physical model to obtain a reduced
+    obtained at a specific operating condition and the physical model to obtain a reduced
     order model for the aerodynamics.
     In can be evolved in time to obtain a solution.
-    It also checks that all the databases have the same deltaT.
     """
 
-    def __init__(self, databases, model, stabilisation=0):
-        self.databases = databases                    # Set of aero databases that will be used to build the ROM
+    def __init__(self, database, model, stabilisation=0):
+        self.database = database                      # Database that will be used to build the ROM
         self.model = model                            # Physical aero model
-        self.deltaT = databases[0].deltaT             # The time step of the ROM
-        self.nmodes = databases[0].Uinit.shape[0]     # Number of modal coordinates
+        self.deltaT = database.deltaT                 # The time step of the ROM
+        self.nmodes = database.Uinit.shape[0]         # Number of modal coordinates
         self.A = None                                 # A matrix, evolving the state
         self.B = None                                 # B matrix, including the structural inputs
         self.X = None                                 # Aerodynamic state in reduced coordinates
@@ -27,47 +26,39 @@ class ROM:
         self.referenceSnapshotSlope = None            # Used for the steady part of the forces in case of Brunton stabilisation
         self.Up = None                                # Projection operator
         self.stabilisation = stabilisation            # Treatment of unstable aerodynamic systems
-        for i in range(1, len(self.databases)):
-            if databases[i].deltaT != self.deltaT:
-                raise Exception('Different time step for the different databases')
+
         self.__createABmatrices()
         self.__setInitialCondition()
         self.__stabilise()
-        if not self.model.normals == self.databases[0].pointID.tolist():
+        if not self.model.normals == self.database.pointID.tolist():
             raise Exception('Cps are not defined on the same cells as for the definition of the normals')
 
     def __createABmatrices(self):
-        if len(self.databases) > 1:
-            raise Exception('Multiple databases not yet supported')
 
-        for i in range(len(self.databases)):
-            Up, Sp, VTp, Xcenter, U, S, VT, referenceSnapshotSlope, stateToSubtract \
-                = self.databases[i].getSVD(self.stabilisation == 2) # In the True case we do not use the modal amplitude as input
-
-            n = self.databases[i].X.shape[0]
-            U_1 = U[:n, :]
-            U_2 = U[n:, :]
-
-            if stateToSubtract is not None:
-                self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xcenter - stateToSubtract,
-                                              VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
-                self.B = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xcenter - stateToSubtract,
-                                              VT.conj().T, np.linalg.inv(S), U_2.conj().T])
-            else:
-                self.A = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xcenter,
-                                              VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
-                self.B = np.linalg.multi_dot([Up.conj().T, self.databases[i].X[:, 1:] - Xcenter,
-                                              VT.conj().T, np.linalg.inv(S), U_2.conj().T])
-
-            self.Xcenter = np.copy(Xcenter)
-            self.referenceSnapshotSlope = referenceSnapshotSlope
-            self.Up = np.copy(Up)
+        Up, Sp, VTp, Xcenter, U, S, VT, referenceSnapshotSlope, stateToSubtract \
+            = self.database.getSVD(self.stabilisation == 2) # In the True case we do not use the modal amplitude as input
+        n = self.database.X.shape[0]
+        U_1 = U[:n, :]
+        U_2 = U[n:, :]
+        if stateToSubtract is not None:
+            self.A = np.linalg.multi_dot([Up.conj().T, self.database.X[:, 1:] - Xcenter - stateToSubtract,
+                                          VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
+            self.B = np.linalg.multi_dot([Up.conj().T, self.database.X[:, 1:] - Xcenter - stateToSubtract,
+                                          VT.conj().T, np.linalg.inv(S), U_2.conj().T])
+        else:
+            self.A = np.linalg.multi_dot([Up.conj().T, self.database.X[:, 1:] - Xcenter,
+                                          VT.conj().T, np.linalg.inv(S), U_1.conj().T, Up])
+            self.B = np.linalg.multi_dot([Up.conj().T, self.database.X[:, 1:] - Xcenter,
+                                          VT.conj().T, np.linalg.inv(S), U_2.conj().T])
+        self.Xcenter = np.copy(Xcenter)
+        self.referenceSnapshotSlope = referenceSnapshotSlope
+        self.Up = np.copy(Up)
 
     def __setInitialCondition(self):
         if self.stabilisation != 2:
-            self.Z = self.databases[0].Xinit - self.Xcenter
+            self.Z = self.database.Xinit - self.Xcenter
         else:
-            self.Z = self.databases[0].Xinit - self.Xcenter - self.referenceSnapshotSlope.dot(self.databases[0].Uinit)
+            self.Z = self.database.Xinit - self.Xcenter - self.referenceSnapshotSlope.dot(self.database.Uinit)
 
         self.Z = self.Z.reshape((len(self.Z),1))
         self.X = self.Up.conj().T.dot(self.Z)
