@@ -64,7 +64,6 @@ class ROM:
             self.Up = np.copy(Up)
 
     def __setInitialCondition(self):
-        # TODO we need to treat the different operating conditions and "mix" the initial conditions
         if self.stabilisation != 2:
             self.Z = self.databases[0].Xinit - self.Xcenter
         else:
@@ -108,7 +107,6 @@ class ROM:
                           np.linalg.inv(resultEig[1])]))
 
     def predict(self, inputs_q, inputs_qdot, inputs_qddot):
-        # TODO we need to treat the different operating conditions
         inputs_q = inputs_q.reshape((len(inputs_q), 1))
         inputs_qdot = inputs_qdot.reshape((len(inputs_qdot), 1))
         inputs_qddot = inputs_qddot.reshape((len(inputs_qddot), 1))
