@@ -97,9 +97,15 @@ class physicalModel:
             headerLine = headerLine.split(',')
             for element in range(len(headerLine)):
                 headerLine[element] = headerLine[element].strip()
-            if '"x"' not in headerLine or '"y"' not in headerLine or '"z"' not in headerLine:
+            if '"x"' not in headerLine or '"y"' not in headerLine:
                 raise Exception('Grid positions must be requested as an output to the fluid solver')
+            if '"z"' not in headerLine:
+                self.problem2d = True
+            else:
+                self.problem2d = False
+                indexZ = headerLine.index('"z"')
             indexX = headerLine.index('"x"')
+            indexY = headerLine.index('"y"')
             indexID = headerLine.index('"PointID"')
             while True:
                 line = file.readline()
@@ -107,8 +113,10 @@ class physicalModel:
                     break
                 line = line.strip('\r\n')
                 line = line.split(',')
-                self.undeformedShape.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexX + 1]),
-                                                      float(line[indexX + 2])))
+                if self.problem2d:
+                    self.undeformedShape.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), 0.0))
+                else:
+                    self.undeformedShape.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), float(line[indexZ])))
 
         print('Obtain now the deformation due to modes')
         for mode in range(len(files)):
@@ -120,9 +128,12 @@ class physicalModel:
                 headerLine = headerLine.split(',')
                 for element in range(len(headerLine)):
                     headerLine[element] = headerLine[element].strip()
-                if '"x"' not in headerLine or '"y"' not in headerLine or '"z"' not in headerLine:
+                if '"x"' not in headerLine or '"y"' not in headerLine:
                     raise Exception('Grid positions must be requested as an output to the fluid solver')
+                if not self.problem2d:
+                    indexZ = headerLine.index('"z"')
                 indexX = headerLine.index('"x"')
+                indexY = headerLine.index('"y"')
                 indexID = headerLine.index('"PointID"')
                 while True:
                     line = file.readline()
@@ -130,8 +141,10 @@ class physicalModel:
                         break
                     line = line.strip('\r\n')
                     line = line.split(',')
-                    newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexX + 1]),
-                                               float(line[indexX + 2])))
+                    if self.problem2d:
+                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), 0.0))
+                    else:
+                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), float(line[indexZ])))
             for i in range(len(newColumn)):
                 newColumn[i].ux, newColumn[i].uy, newColumn[i].uz = newColumn[i] - self.undeformedShape[i]
             self.shapes.append(newColumn)
@@ -167,5 +180,8 @@ class physicalModel:
     def getLift(self, Pressure):
         force = 0.0
         for j in range(len(self.normals)):
-            force += self.normals[j].nz * Pressure[j]
+            if not self.problem2d:
+                force += self.normals[j].nz * Pressure[j]
+            else:
+                force += self.normals[j].ny * Pressure[j]
         return force
