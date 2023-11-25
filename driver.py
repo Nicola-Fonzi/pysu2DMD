@@ -67,7 +67,10 @@ def main(cfgFile = None):
         configuration = readConfig(cfgFile)
 
         # Create the physical model
-        model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
+        if "MODE_SCALE" in configuration:
+            model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
+        else:
+            model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"], configuration["MODE_SCALE"])
 
         # Gather the database
         database = aerodynamics.database(configuration["STRUCT_HISTORY"][i],
@@ -142,6 +145,8 @@ def readConfig(cfgFile):
             configuration[this_param] = eval(this_value)
         elif this_param == "MODAL_DAMP":
             configuration[this_param] = float(this_value)
+        elif this_param == "MODE_SCALE":
+            configuration[this_param] = np.array(eval(this_value))
         elif this_param == "THRESHOLDING":
             try:
                 configuration[this_param] = int(this_value)

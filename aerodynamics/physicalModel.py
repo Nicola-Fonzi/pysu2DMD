@@ -3,6 +3,7 @@
 # Imports
 import glob
 import os
+import numpy
 
 
 class nodeNormal:
@@ -57,10 +58,11 @@ class physicalModel:
     panel area
     """
 
-    def __init__(self, filenameNormals, filenameModes):
+    def __init__(self, filenameNormals, filenameModes, scales = []):
         print('Creating the physical model.')
         self.filenameNormals = filenameNormals
         self.filenameModes = filenameModes
+        self.scales = scales
         self.normals = []
         self.shapes = []
         self.undeformedShape = []
@@ -89,6 +91,10 @@ class physicalModel:
         print('Obtaining the mode shapes')
 
         files, undeformedFile = self.__getFiles()
+        if len(self.scales) == 0:
+            self.scales = numpy.ones((1,len(files)))
+        if len(files) != len(self.scales):
+            raise Exception('If the modal amplitudes are to be scaled, please specify a scale factor per each mode in the configuration file')
 
         print('Starting with the undeformed condition')
         with open(undeformedFile, 'r') as file:
@@ -142,9 +148,9 @@ class physicalModel:
                     line = line.strip('\r\n')
                     line = line.split(',')
                     if self.problem2d:
-                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), 0.0))
+                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX])/self.scales[mode], float(line[indexY])/self.scales[mode], 0.0))
                     else:
-                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX]), float(line[indexY]), float(line[indexZ])))
+                        newColumn.append(nodeShape(int(line[indexID]), float(line[indexX])/self.scales[mode], float(line[indexY])/self.scales[mode], float(line[indexZ])/self.scales[mode]))
             for i in range(len(newColumn)):
                 newColumn[i].ux, newColumn[i].uy, newColumn[i].uz = newColumn[i] - self.undeformedShape[i]
             self.shapes.append(newColumn)
