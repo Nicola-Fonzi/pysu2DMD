@@ -67,14 +67,14 @@ def main(cfgFile = None):
         configuration = readConfig(cfgFile)
 
         # Create the physical model
-        if "MODE_SCALE" in configuration:
+        if "MODE_SCALE" not in configuration:
             model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"])
         else:
             model = aerodynamics.physicalModel(configuration["NORMALS"], configuration["MODES"], configuration["MODE_SCALE"])
 
         # Gather the database
-        database = aerodynamics.database(configuration["STRUCT_HISTORY"][i],
-                                            configuration["AERO_HISTORY"][i], configuration["THRESHOLDING"])
+        database = aerodynamics.database(configuration["STRUCT_HISTORY"],
+                                            configuration["AERO_HISTORY"], configuration["THRESHOLDING"])
 
         # Build the ROM
         ROM = aerodynamics.ROM(database, model, configuration["STABILISATION"])

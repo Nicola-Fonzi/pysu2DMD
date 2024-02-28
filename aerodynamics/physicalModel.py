@@ -92,7 +92,7 @@ class physicalModel:
 
         files, undeformedFile = self.__getFiles()
         if len(self.scales) == 0:
-            self.scales = numpy.ones((1,len(files)))
+            self.scales = numpy.ones((len(files)))
         if len(files) != len(self.scales):
             raise Exception('If the modal amplitudes are to be scaled, please specify a scale factor per each mode in the configuration file')
 
